@@ -97,7 +97,7 @@ void CAP ( js0n_parser_t * parser, int refpos )
 
 void next_char ( js0n_parser_t * parser )
 {
-  parser->stream->readBytes((char *) &(parser->current), 1);
+  parser->live = parser->stream->readBytes((char *) &(parser->current), 1);
   parser->buf[parser->mark >= 299 ? parser->mark = 0 : parser->mark++] = parser->current;
   ++parser->cursor;
 }
@@ -230,11 +230,12 @@ int js0n_parse ( js0n_parser_t * parser )
     parser->mark = 0;
     parser->depth = 0;
     parser->utf8_remain = 0;
+    parser->live = 1;
     parser->gostate = JS0N_STATE_GOSTRUCT;
     
     next_char(parser);
 
-    while ( parser->cursor <= parser->length )
+    while ( parser->cursor <= parser->length && parser->live )
     {   
         switch ( parser->gostate )
         {
@@ -378,15 +379,4 @@ int js0n_parse ( js0n_parser_t * parser )
     }
 
     return parser->depth; // 0 if successful full parse, >0 for incomplete data
-}
-
-
-int parse_json_stream ( Stream *stream, uint8_t *buf, int content_len, js0n_user_cb_t cb )
-{
-  js0n_parser_t parser;
-  parser.buf = buf;
-  parser.length = content_len;
-  parser.stream = stream;
-  parser.user_cb = notifications_cb;
-  return js0n_parse ( &parser );
 }

@@ -30,10 +30,10 @@ typedef struct js0n_parser
     uint16_t gostate;
     uint8_t *buf;
     uint16_t mark;
+    uint8_t live;
 } js0n_parser_t;
 
 int js0n_parse ( js0n_parser_t * parser );
-int parse_json_stream ( Stream *stream, char *buf, int content_len, js0n_user_cb_t cb );
 
 // wifi
 
@@ -49,8 +49,10 @@ void postRequest (char *host, char *path);
 void requestBody(int len, char *str);
 void requestEnd();
 
-void readResponse (int *content_len);
-void readContent (char *buf, int max_len, int content_len);
+void readResponseHeaders (int *content_len);
+void readResponse (char *buf, int max_len, int content_len);
+
+int parseResponse ( uint8_t *buf, uint16_t bufSize, js0n_user_cb_t cb );
 
 #ifdef __cplusplus
 }

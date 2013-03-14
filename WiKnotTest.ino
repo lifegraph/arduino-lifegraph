@@ -24,14 +24,14 @@ int light = 12; // define our light pin
  
 void setup()
 {
-  // Ports.
+  // Setup ports.
   Serial.begin(9600);
   wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
   
   Serial.println("Connecting...");
  
-  // Setup network.
+  // Setup network connection.
   if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
     Serial.println("Failed to join network.");
   } else {
@@ -39,18 +39,25 @@ void setup()
   }
 }
 
+// We have to initialize a static buffer for parsing JSON keys
+// and strings. This only needs to be as big as your largest key/string.
 uint8_t buf[300];
-int newState = LOW;
 
+// State the light should be in before/after a request. 
+int nextLightState = LOW;
+
+// Our callback for while we are parsing JSON.
 int notifications_cb ( uint8_t *cursor, uint16_t length, uint16_t level )
 {
+  // If we see the "title" key in JSON, that means we have a notification.
   if (strncmp((char *) cursor, "title", length) == 0) {
-    newState = HIGH;
+    nextLightState = HIGH;
   }
 }
  
 void loop()
 {
+  // Make the GET request to the Facebook API.
   getRequestByUrl("http://lifegraph-proxy-facebook.herokuapp.com/me/notifications?limit=1&access_token=...");  
   
   // Get response.
@@ -59,9 +66,10 @@ void loop()
 
   Serial.println( "parsing input..." );
   
-  newState = LOW;
+  // Reset light state, parse the JSON stream with a custom callback, then reset the light.
+  nextLightState = LOW;
   parse_json_stream ( &wifly, buf, content_len, notifications_cb );
-  digitalWrite(light, newState);
+  digitalWrite(light, nextLightState);
 
 }
 

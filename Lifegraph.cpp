@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "WiKnot.h"
+#include "Lifegraph.h"
 #include <WiFlyHQ.h>
 #include <SoftwareSerial.h>
 
@@ -25,11 +25,25 @@ boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *p
   return true;
 }
 
-void readResponseHeaders (int *content_len) {
+void readResponseHeaders (int *status_code, int *content_len) {
   boolean line_start = true;
   char toss[1], buf[64];
   int len;
-  *content_len = 0;
+  *content_len = *status_code = 0;
+
+  // HTTP/1.1 xxx
+  if (wifly.readBytes(buf, 9) == 0) {
+    return;
+  }
+  if (wifly.readBytes(buf, 3) == 0) {
+    return;
+  }
+  buf[3] = '\0';
+  *status_code = strtol(buf, NULL, 10);
+  if (wifly.readBytesUntil('\n', buf, sizeof(buf)) == 0) {
+    return;
+  }
+
   while (true) {
     // Read first character of line.
     if (wifly.readBytes(buf, 1) == 0) {
@@ -123,105 +137,94 @@ void debugWifiState () {
 }
 
 /**
- * GET
- */
- 
-void getHeader (char *host, char *path) {
-  wifly.print("GET ");
-  wifly.print(path);
-  wifly.println(" HTTP/1.1"); // paste your number here
-  wifly.print("Host: ");
-  wifly.println(host);
-  wifly.println("User-Agent: lifegraph/0.0.1");
-  wifly.println();
-}
-
-void getRequestByUrl (char *url) {
-  // TODO not include 256 byte buffer here.
-  char host[100], *path;
-  parseUrl(url, host, &path);
-  getRequest(host, path);
-}
- 
-void getRequest (char *host, char *path) {
-  // If an old connection is active, close.
-  if (wifly.isConnected()) {
-    wifly.close();
-  }
-  
-  if (!wifly.open(host, 80)) {
-    Serial.println("Failed to connect to host.");
-  }
-  
-  getHeader(host, path);
-}
-
-/**
- * POST
- */
- 
-void postHeader(char *host, char *path) {
-  wifly.print("POST ");
-  wifly.print(path);
-  wifly.println(" HTTP/1.1"); // paste your number here
-  wifly.print("Host: ");
-  wifly.println(host);
-  wifly.println("User-Agent: lifegraph/0.0.1");
-  wifly.println("Content-Type: application/x-www-form-urlencoded");
-  wifly.println("Transfer-Encoding: chunked");
-  wifly.println();
-}
- 
-void postRequestByUrl (char *url) {
-  // TODO not include 256 byte buffer here.
-  char host[256], *path;
-  parseUrl(url, host, &path);
-  postRequest(host, path);
-}
- 
-void postRequest (char *host, char *path) {
-  // If an old connection is active, close.
-  if (wifly.isConnected()) {
-    wifly.close();
-  }
-  
-  if (wifly.open(host, 80)) {
-    Serial.println("Connected.");
-  } else {
-    Serial.println("Failed to connect");
-    return;
-  }
-  
-  postHeader(host, path);
-}
-
-/**
- * Body
+ * Facebook
  */
 
-void requestBody(int len, char *str) {
+void FacebookAPI::get (const char *path, const char *access_token) {
+  this->hasBody = false;
+  this->_headers("GET", path, access_token);
+}
+
+void FacebookAPI::post (const char *path, const char *access_token) {
+  this->hasBody = true;
+  this->_headers("POST", path, access_token);
+}
+
+int FacebookAPI::request ( ) {
+  return this->request(NULL);
+}
+
+int FacebookAPI::request ( js0n_user_cb_t cb ) {
+  if (this->hasBody) {
+    wifly.println("0");
+    wifly.println();
+  }
+  
+  js0n_parser_t parser;
+  parser.buf = this->buffer;
+  parser.stream = &wifly;
+  parser.user_cb = cb;
+  
+  int status_code = 0;
+  readResponseHeaders(&status_code, (int *) &parser.length);
+  if (status_code != 0 && status_code < 400) {
+    int parse_status = js0n_parse ( &parser );
+  }
+  return status_code;
+}
+
+void FacebookAPI::form (const char *name, const char *value) {
+  this->chunk(name, strlen(name));
+  this->chunk("=", 1);
+  this->chunk(value, strlen(value));
+  this->chunk("&", 1);
+}
+
+void FacebookAPI::chunk (const char *str, int len) {
   char lenstr[12];
   sprintf(lenstr, "%X", len);
   wifly.println(lenstr);
   wifly.println(str);
 }
 
-void requestBody() {
-  wifly.println("0");
+void FacebookAPI::_headers (const char *method, const char *path, const char *access_token) {
+  // If an old connection is active, close.
+  if (wifly.isConnected()) {
+    wifly.close();
+  }
+  
+  if (!wifly.open(this->host, 80)) {
+    Serial.println("Failed to connect to host.");
+  }
+  
+  wifly.print(method);
+  wifly.print(" ");
+  wifly.print("http://");
+  wifly.print(this->host);
+  wifly.print(this->base);
+  wifly.print("/");
+  wifly.print(path);
+  wifly.print(strstr(path, "?") == 0 ? "?" : "&");
+  wifly.print("access_token=");
+  wifly.print(access_token);
+  wifly.println(" HTTP/1.1"); // paste your number here
+  wifly.print("Host: ");
+  wifly.println(this->host);
+  wifly.println("User-Agent: lifegraph/0.0.1");
+  if (this->hasBody) {
+    wifly.println("Content-Type: application/x-www-form-urlencoded");
+    wifly.println("Transfer-Encoding: chunked");
+  }
   wifly.println();
 }
 
-/**
- * JSON parsing
- */
+// We have to initialize a static buffer for parsing JSON keys
+// and strings. This only needs to be as big as your largest key/string.
+uint8_t buf[300];
 
-int parseResponse ( uint8_t *buf, uint16_t bufSize, js0n_user_cb_t cb )
-{ 
-  js0n_parser_t parser;
-  parser.buf = buf;
-  parser.stream = &wifly;
-  parser.user_cb = cb;
-  
-  readResponseHeaders((int *) &parser.length);
-  return js0n_parse ( &parser );
-}
+char *FacebookAPI::host = "lifegraph-proxy-facebook.herokuapp.com";
+char *FacebookAPI::base = "";
+uint8_t *FacebookAPI::buffer = buf;
+int FacebookAPI::bufferSize = sizeof(buf);
+
+FacebookAPI Facebook;

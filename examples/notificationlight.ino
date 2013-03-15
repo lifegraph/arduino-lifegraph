@@ -4,7 +4,7 @@
  */
 
 #include <WiFlyHQ.h>
-#include <WiKnot.h>
+#include <Lifegraph.h>
 
 #include <SoftwareSerial.h>
 SoftwareSerial wifiSerial(2,3);
@@ -17,14 +17,14 @@ SoftwareSerial wifiSerial(2,3);
 const char mySSID[] = "...";
 const char myPassword[] = "...";
 
-// To make a request, you'll need an access token to replace the "..." in this string.
+// To make a request, you'll need an access token.
 // For temporary one, use the Graph API Explorer: https://developers.facebook.com/tools/explorer
-// and request a token with "manage_notifications". Note that this access token expires every hour.
-const char endpoint[] = "http://lifegraph-proxy-facebook.herokuapp.com/me/notifications?limit=1&access_token=...";
+// and request a token with "read_mailbox" and "publish_stream" permissions.
+// But take note: Graph API Explorer access tokens expires every hour.
+const char access_token[] = "...";
  
 // Pin our LED is connected to.
 int light = 12;
- 
  
 /**
  * Setup
@@ -45,6 +45,14 @@ void setup()
   } else {
     Serial.println("Joined wifi network.");
   }
+
+  // Uncomment these lines to post a status update:
+//  Facebook.post("me/feed", access_token);
+//  Facebook.form("message", "Posting a status update from my Arduino!");
+//  int status_code = Facebook.request();
+//  
+//  Serial.print("Status: ");
+//  Serial.println(status_code);
 }
 
 
@@ -52,12 +60,13 @@ void setup()
  * Loop
  */
 
-// We have to initialize a static buffer for parsing JSON keys
-// and strings. This only needs to be as big as your largest key/string.
-uint8_t buf[300];
-
-// State the light should be in before/after a request. 
-int nextLightState = LOW, state = 0;
+// Our response parsing is a state machine.
+// 0 = no content
+// 1 = error
+// 2 = unread parsing
+// 3 = no unread messages
+// 4 = unread messages!
+int state = 0;
 
 // Our callback for parsing JSON.
 // NOTE: Don't perform any serial tasks (such as logging) in this function.
@@ -65,35 +74,42 @@ int nextLightState = LOW, state = 0;
 // a state variable that indicates the notification state.
 int notifications_cb ( uint8_t *cursor, uint16_t length, uint16_t level )
 {
+  // after "unread", we should immediately read the next value.
+  // if it's non-0, we've received unread notifications.
+  if (state == 2) {
+    if (cursor[0] != '0') {
+      state = 4;
+    } else {
+      state = 3;
+    }
+  }
   // "error", perhaps access token is expired
   if (strncmp((char *) cursor, "error", length) == 0) {
     state = 1;
   }
-  // "data", we succesfully made the request.
-  if (strncmp((char *) cursor, "data", length) == 0) {
+  // "unread", we are reading the # of unread messages
+  if (strncmp((char *) cursor, "unread", length) == 0) {
     state = 2;
-  }
-  // "title", there is at least one notification
-  if (strncmp((char *) cursor, "title", length) == 0) {
-    state = 3;
-    nextLightState = HIGH;
   }
 }
  
 void loop()
-{
-  // Make the GET request to the Facebook API.
-  getRequestByUrl((char *) endpoint);  
-  
-  // Reset light state, parse the JSON stream with a custom callback, then reset the light.
-  nextLightState = LOW;
+{ 
+  // Reset light state.
   state = 0;
-  int res = parseResponse ( buf, sizeof(buf), notifications_cb );
-  digitalWrite(light, nextLightState);
+  
+  // Make the GET request to the Facebook API.
+  Facebook.get("me/inbox?limit=1&fields=unread", access_token);
+  int status_code = Facebook.request ( notifications_cb );
+  
+  // Update light state.
+  if (state > 0) {
+    digitalWrite(light, state == 4 ? HIGH : LOW);
+  }
 
   // Notify terminal of parsing status.
-  Serial.print("Done. Parser state: ");
-  Serial.print(res, HEX);
+  Serial.print("Done. Response: ");
+  Serial.print(status_code);
   Serial.print(", notification state: ");
   Serial.println(state, HEX);
 }

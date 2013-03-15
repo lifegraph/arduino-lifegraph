@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "WiKnot.h"
+#include "Lifegraph.h"
 
 /* this code is based on the work by jeremie miller, which is part of the public domain
  * git://github.com/quartzjer/js0n.git */
@@ -78,8 +78,11 @@ typedef enum
 
 void PUSH ( js0n_parser_t * parser, int refpos )
 {
-    parser->mark = 300 - refpos;
-    parser->buf[parser->mark >= 299 ? parser->mark = 0 : parser->mark++] = parser->current;
+    parser->mark = refpos == 0 ? 0 : 300 - refpos;
+    parser->buf[parser->mark++] = parser->current;
+    if (parser->mark > 299) {
+        parser->mark -= 300;
+    }
 }
 
 void CAP ( js0n_parser_t * parser, int refpos )
@@ -90,7 +93,9 @@ void CAP ( js0n_parser_t * parser, int refpos )
 
     /* notify the user */
     if (length > 0) {
-      parser->user_cb ( parser->buf, length, parser->depth );
+        if (parser->user_cb != NULL) {
+          parser->user_cb ( parser->buf, length, parser->depth );
+      }
       parser->mark = 0;
     }
 }
@@ -98,7 +103,10 @@ void CAP ( js0n_parser_t * parser, int refpos )
 void next_char ( js0n_parser_t * parser )
 {
   parser->live = parser->stream->readBytes((char *) &(parser->current), 1);
-  parser->buf[parser->mark >= 299 ? parser->mark = 0 : parser->mark++] = parser->current;
+  parser->buf[parser->mark++] = parser->current;
+    if (parser->mark > 299) {
+        parser->mark -= 300;
+    }
   ++parser->cursor;
 }
 
@@ -177,7 +185,7 @@ int l_bare ( js0n_parser_t * parser )
 
 int l_unbare ( js0n_parser_t * parser )
 {
-    CAP ( parser, -1 );
+    CAP ( parser, 0 );
     parser->gostate = JS0N_STATE_GOSTRUCT;
     
     return 0;

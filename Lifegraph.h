@@ -2,6 +2,7 @@
 #define _JS0N_H_
 
 #include <Arduino.h>
+#include <WiFlyHQ.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <SoftwareSerial.h>
@@ -9,6 +10,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern WiFly wifly;
 
 typedef struct js0n_parser;
 
@@ -40,19 +43,29 @@ int js0n_parse ( js0n_parser_t * parser );
 boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass);
 void debugWifiState ();
 
-void getRequestByUrl (char *url);
-void getRequest (char *host, char *path);
+// Facebook
 
-void postRequestByUrl (char *url);
-void postRequest (char *host, char *path);
+class FacebookAPI {
+  
+  public:
+    static char *host;
+    static char *base;
+    static uint8_t *buffer;
+    static int bufferSize;
+    
+    void get (const char *path, const char *access_token);
+    void post (const char *path, const char *access_token);
+    int request ( );
+    int request ( js0n_user_cb_t cb );
+    void form (const char *name, const char *value);
+    void chunk (const char *str, int len);
+  
+  private:
+    boolean hasBody;
+    void _headers (const char *method, const char *path, const char *access_token);
+};
 
-void requestBody(int len, char *str);
-void requestEnd();
-
-void readResponseHeaders (int *content_len);
-void readResponse (char *buf, int max_len, int content_len);
-
-int parseResponse ( uint8_t *buf, uint16_t bufSize, js0n_user_cb_t cb );
+extern FacebookAPI Facebook;
 
 #ifdef __cplusplus
 }

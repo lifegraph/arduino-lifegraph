@@ -136,25 +136,30 @@ void debugWifiState () {
   Serial.println(wifly.getDeviceID(buf, sizeof(buf)));
 }
 
+
 /**
- * Facebook
+ * JSON API
  */
 
-void FacebookAPI::get (const char *access_token, const char *path) {
+void JSONAPI::get (const char *path) {
   this->hasBody = false;
-  this->_headers("GET", path, access_token);
+  this->_headerStart("GET");
+  this->_headerPath(path);
+  this->_headerEnd();
 }
 
-void FacebookAPI::post (const char *access_token, const char *path) {
+void JSONAPI::post (const char *path) {
   this->hasBody = true;
-  this->_headers("POST", path, access_token);
+  this->_headerStart("POST");
+  this->_headerPath(path);
+  this->_headerEnd();
 }
 
-int FacebookAPI::request ( ) {
+int JSONAPI::request ( ) {
   return this->request(NULL);
 }
 
-int FacebookAPI::request ( js0n_user_cb_t cb ) {
+int JSONAPI::request ( js0n_user_cb_t cb ) {
   if (this->hasBody) {
     wifly.println("0");
     wifly.println();
@@ -173,21 +178,21 @@ int FacebookAPI::request ( js0n_user_cb_t cb ) {
   return status_code;
 }
 
-void FacebookAPI::form (const char *name, const char *value) {
-  this->chunk(name, strlen(name));
-  this->chunk("=", 1);
-  this->chunk(value, strlen(value));
-  this->chunk("&", 1);
+void JSONAPI::form (const char *name, const char *value) {
+  this->_chunk(name, strlen(name));
+  this->_chunk("=", 1);
+  this->_chunk(value, strlen(value));
+  this->_chunk("&", 1);
 }
 
-void FacebookAPI::chunk (const char *str, int len) {
+void JSONAPI::_chunk (const char *str, int len) {
   char lenstr[12];
   sprintf(lenstr, "%X", len);
   wifly.println(lenstr);
   wifly.println(str);
 }
 
-void FacebookAPI::_headers (const char *method, const char *path, const char *access_token) {
+void JSONAPI::_headerStart (const char *method) {
   // If an old connection is active, close.
   if (wifly.isConnected()) {
     wifly.close();
@@ -199,14 +204,17 @@ void FacebookAPI::_headers (const char *method, const char *path, const char *ac
   
   wifly.print(method);
   wifly.print(" ");
-  wifly.print("http://");
-  wifly.print(this->host);
+  // wifly.print("http://");
+  // wifly.print(this->host);
+}
+
+void JSONAPI::_headerPath (const char *path) {
   wifly.print(this->base);
   wifly.print("/");
   wifly.print(path);
-  wifly.print(strstr(path, "?") == 0 ? "?" : "&");
-  wifly.print("access_token=");
-  wifly.print(access_token);
+}
+
+void JSONAPI::_headerEnd () {
   wifly.println(" HTTP/1.1"); // paste your number here
   wifly.print("Host: ");
   wifly.println(this->host);
@@ -218,9 +226,42 @@ void FacebookAPI::_headers (const char *method, const char *path, const char *ac
   wifly.println();
 }
 
+
 /** 
- * Convenience methods
+ * Facebook API
+ * Extends the JSONAPI with custom methods to connect to the Facebook API.
  */
+
+FacebookAPI::FacebookAPI (uint8_t *buf, int bufferSize)
+{
+  this->host = "lifegraph-proxy-facebook.herokuapp.com";
+  this->base = "";
+  this->buffer = buf;
+  this->bufferSize = bufferSize;
+}
+
+void FacebookAPI::get (const char *access_token, const char *path) {
+  this->hasBody = false;
+  this->_headerStart("GET");
+  this->_headerPath(path, access_token);
+  this->_headerEnd();
+}
+
+void FacebookAPI::post (const char *access_token, const char *path) {
+  this->hasBody = true;
+  this->_headerStart("POST");
+  this->_headerPath(path, access_token);
+  this->_headerEnd();
+}
+
+void FacebookAPI::_headerPath (const char *path, const char *access_token) {
+  wifly.print(this->base);
+  wifly.print("/");
+  wifly.print(path);
+  wifly.print(strstr(path, "?") == 0 ? "?" : "&");
+  wifly.print("access_token=");
+  wifly.print(access_token);
+}
 
 // postStatus
 
@@ -254,17 +295,10 @@ int FacebookAPI::unreadNotifications (const char *access_token, boolean *notific
   return status_code;
 }
 
+
 /**
- * First-class object
+ * Global Facebook object
  */
 
-// We have to initialize a static buffer for parsing JSON keys
-// and strings. This only needs to be as big as your largest key/string.
 uint8_t buf[300];
-
-char *FacebookAPI::host = "lifegraph-proxy-facebook.herokuapp.com";
-char *FacebookAPI::base = "";
-uint8_t *FacebookAPI::buffer = buf;
-int FacebookAPI::bufferSize = sizeof(buf);
-
-FacebookAPI Facebook;
+FacebookAPI Facebook(buf, sizeof(buf));

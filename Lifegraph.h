@@ -5,47 +5,66 @@
 #include <stdbool.h>
 #include <SoftwareSerial.h>
 
+
+// Wifi.
 extern WiFly wifly;
-
-// wifi
-
 boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass);
 void debugWifiState ();
 
-// Facebook
 
-class FacebookAPI {
+// JSON API
+class JSONAPI {
   
   public:
-    static char *host;
-    static char *base;
-    static uint8_t *buffer;
-    static int bufferSize;
+    char *host;
+    char *base;
+    uint8_t *buffer;
+    int bufferSize;
     
-    void get (const char *path, const char *access_token);
-    void post (const char *path, const char *access_token);
+    void get (const char *path);
+    void post (const char *path);
     int request ( );
     int request ( js0n_user_cb_t cb );
     void form (const char *name, const char *value);
-    void chunk (const char *str, int len);
+  
+  protected:
+    boolean hasBody;
+    void _headerStart (const char *method);
+    void _headerPath (const char *path);
+    void _headerEnd ();
+    void _chunk (const char *str, int len);
+};
+
+
+// Facebook API.
+class FacebookAPI : public JSONAPI {
+
+  public:
+    FacebookAPI (uint8_t *buf, int bufferSize);
 
     int postStatus (const char *access_token, const char *status);
     int unreadNotifications (const char *access_token, boolean *notifications_flag_ret);
-  
-  private:
-    boolean hasBody;
-    void _headers (const char *method, const char *path, const char *access_token);
+
+  protected:
+    void get (const char *path, const char *access_token);
+    void post (const char *path, const char *access_token);
+
+    void _headerPath (const char *path, const char *access_token);
 };
 
+
+// Reentrant functions
 #define crBegin static int __state=0; switch(__state) { case 0:
-#define crReturn(x) do { __state=__LINE__; return x; \
-                         case __LINE__:; } while (0)
+#define crReturn(x) do { __state=__LINE__; return x; case __LINE__:; } while (0)
 #define crFinish }
 
+// Macros for writing JSON parsers.
 #define CB_BEGIN crBegin; while (true) {
 #define CB_END crReturn(0); } crFinish;
 #define CB_GET_NEXT_TOKEN crReturn(0);
 #define CB_MATCHES(x) (strncmp((char *) parser->buffer, x, parser->token_length) == 0)
 #define CB_MATCHES_KEY(x) parser->token_type == JSON_MAP_KEY && CB_MATCHES(x)
 
+
+// Global Facebook object.
 extern FacebookAPI Facebook;

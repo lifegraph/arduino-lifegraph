@@ -1,42 +1,11 @@
-#ifndef _JS0N_H_
-#define _JS0N_H_
-
+#include <js0n.h>
 #include <Arduino.h>
 #include <WiFlyHQ.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <SoftwareSerial.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern WiFly wifly;
-
-typedef struct js0n_parser;
-
-/* user callback type */
-typedef int ( * js0n_user_cb_t ) ( uint8_t *buf, uint16_t length, uint16_t level );
-
-typedef struct js0n_parser
-{
-    // public:
-    Stream *stream;
-    uint16_t length;
-    js0n_user_cb_t user_cb;
-
-    // private:
-    uint8_t current;
-    uint16_t cursor;
-    uint8_t depth;
-    uint8_t utf8_remain;
-    uint16_t gostate;
-    uint8_t *buf;
-    uint16_t mark;
-    uint8_t live;
-} js0n_parser_t;
-
-int js0n_parse ( js0n_parser_t * parser );
 
 // wifi
 
@@ -59,16 +28,24 @@ class FacebookAPI {
     int request ( js0n_user_cb_t cb );
     void form (const char *name, const char *value);
     void chunk (const char *str, int len);
+
+    int postStatus (const char *access_token, const char *status);
+    int unreadNotifications (const char *access_token, boolean *notifications_flag_ret);
   
   private:
     boolean hasBody;
     void _headers (const char *method, const char *path, const char *access_token);
 };
 
+#define crBegin static int __state=0; switch(__state) { case 0:
+#define crReturn(x) do { __state=__LINE__; return x; \
+                         case __LINE__:; } while (0)
+#define crFinish }
+
+#define CB_BEGIN crBegin; while (true) {
+#define CB_END crReturn(0); } crFinish;
+#define CB_GET_NEXT_TOKEN crReturn(0);
+#define CB_MATCHES(x) (strncmp((char *) parser->buffer, x, parser->token_length) == 0)
+#define CB_MATCHES_KEY(x) parser->token_type == JSON_MAP_KEY && CB_MATCHES(x)
+
 extern FacebookAPI Facebook;
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif

@@ -1,7 +1,7 @@
-#include <Arduino.h>
-#include "Lifegraph.h"
+#include "js0n.h"
 
 /* this code is based on the work by jeremie miller, which is part of the public domain
+ * https://github.com/lifegraph/js0n
  * git://github.com/quartzjer/js0n.git */
 
 #define CASES_a_TO_z \
@@ -79,7 +79,7 @@ typedef enum
 void PUSH ( js0n_parser_t * parser, int refpos )
 {
     parser->mark = refpos == 0 ? 0 : 300 - refpos;
-    parser->buf[parser->mark++] = parser->current;
+    parser->buffer[parser->mark++] = parser->current;
     if (parser->mark > 299) {
         parser->mark -= 300;
     }
@@ -93,9 +93,8 @@ void CAP ( js0n_parser_t * parser, int refpos )
 
     /* notify the user */
     if (length > 0) {
-        if (parser->user_cb != NULL) {
-          parser->user_cb ( parser->buf, length, parser->depth );
-      }
+      parser->token_length = length;
+      parser->user_cb ( parser );
       parser->mark = 0;
     }
 }
@@ -103,7 +102,7 @@ void CAP ( js0n_parser_t * parser, int refpos )
 void next_char ( js0n_parser_t * parser )
 {
   parser->live = parser->stream->readBytes((char *) &(parser->current), 1);
-  parser->buf[parser->mark++] = parser->current;
+  parser->buffer[parser->mark++] = parser->current;
     if (parser->mark > 299) {
         parser->mark -= 300;
     }
@@ -124,6 +123,10 @@ int l_bad ( js0n_parser_t * parser )
 
 int l_up ( js0n_parser_t * parser )
 {
+    parser->token_length = 0;
+    parser->token_type = parser->current == '{' ? JSON_START_MAP : JSON_START_ARRAY;
+    parser->user_cb ( parser );
+
     PUSH ( parser, 0 );
     ++parser->depth;
     next_char ( parser );
@@ -133,6 +136,8 @@ int l_up ( js0n_parser_t * parser )
 
 int l_down ( js0n_parser_t * parser )
 {
+    parser->token_type = parser->current == '}' ? JSON_END_MAP : JSON_END_ARRAY;
+
     --parser->depth;
     CAP ( parser, 0 );
     next_char(parser);
@@ -230,6 +235,10 @@ int l_utf_continue ( js0n_parser_t * parser )
     return 0;
 }
 
+int json_cb_noop ( js0n_parser_t * parser ) {
+    return 0;
+}
+
 int js0n_parse ( js0n_parser_t * parser )
 {
     int ret;
@@ -240,8 +249,13 @@ int js0n_parse ( js0n_parser_t * parser )
     parser->utf8_remain = 0;
     parser->live = 1;
     parser->gostate = JS0N_STATE_GOSTRUCT;
+    if (parser->user_cb == NULL) {
+        parser->user_cb = json_cb_noop;
+    }
     
     next_char(parser);
+
+    boolean is_key = false;
 
     while ( parser->cursor <= parser->length && parser->live )
     {   
@@ -250,21 +264,24 @@ int js0n_parse ( js0n_parser_t * parser )
         case JS0N_STATE_GOSTRUCT:
             switch ( parser->current )
             {
+            case ',':
+                is_key = true;
             case '\t':
             case ' ':
             case '\r':
             case '\n':
             case ':':
-            case ',':
                 ret = l_loop ( parser );
                 break;
 
             case '"':
+                parser->token_type = is_key ? JSON_MAP_KEY : JSON_STRING;
                 ret = l_qup ( parser );
                 break;
            
-            case '[':
             case '{':
+                is_key = true;
+            case '[':
                 ret = l_up ( parser );
                 break;
 
@@ -273,11 +290,21 @@ int js0n_parse ( js0n_parser_t * parser )
                 ret = l_down ( parser );
                 break;
 
-            case '-':
             case 't':
+                parser->token_type = JSON_TRUE;
+                if (0) {
             case 'f':
+                parser->token_type = JSON_FALSE;
+                }
+                if (0) {
             case 'n':
+                parser->token_type = JSON_NULL;
+                }
+                if (0) {
+            case '-':
             case CASES_0_TO_9:
+                parser->token_type = JSON_DOUBLE;
+                }
                 ret = l_bare ( parser );
                 break;
 
@@ -329,6 +356,7 @@ int js0n_parse ( js0n_parser_t * parser )
 
             case '"':
                 ret = l_qdown ( parser );
+                is_key = false;
                 break;
 
             case CASES_UTF8_2:

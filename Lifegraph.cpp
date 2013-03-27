@@ -140,12 +140,12 @@ void debugWifiState () {
  * Facebook
  */
 
-void FacebookAPI::get (const char *path, const char *access_token) {
+void FacebookAPI::get (const char *access_token, const char *path) {
   this->hasBody = false;
   this->_headers("GET", path, access_token);
 }
 
-void FacebookAPI::post (const char *path, const char *access_token) {
+void FacebookAPI::post (const char *access_token, const char *path) {
   this->hasBody = true;
   this->_headers("POST", path, access_token);
 }
@@ -161,13 +161,13 @@ int FacebookAPI::request ( js0n_user_cb_t cb ) {
   }
   
   js0n_parser_t parser;
-  parser.buf = this->buffer;
+  parser.buffer = this->buffer;
   parser.stream = &wifly;
   parser.user_cb = cb;
   
   int status_code = 0;
   readResponseHeaders(&status_code, (int *) &parser.length);
-  if (status_code != 0 && status_code < 400) {
+  if (status_code != 0 && status_code < 500) {
     int parse_status = js0n_parse ( &parser );
   }
   return status_code;
@@ -217,6 +217,46 @@ void FacebookAPI::_headers (const char *method, const char *path, const char *ac
   }
   wifly.println();
 }
+
+/** 
+ * Convenience methods
+ */
+
+// postStatus
+
+int FacebookAPI::postStatus (const char *access_token, const char *status) {
+  Facebook.post(access_token, "me/feed");
+  Facebook.form("message", status);
+  return Facebook.request();
+}
+
+// unreadNotifications
+
+boolean notifications_flag;
+
+int notifications_cb ( js0n_parser_t * parser )
+{
+  CB_BEGIN;
+  if (CB_MATCHES_KEY("unread")) {
+    CB_GET_NEXT_TOKEN;
+    if (parser->buffer[0] != '0') {
+      notifications_flag = 1;
+    }
+  }
+  CB_END;
+}
+
+int FacebookAPI::unreadNotifications (const char *access_token, boolean *notifications_flag_ret) {
+  notifications_flag = 0;
+  Facebook.get(access_token, "me/notifications?limit=1");
+  int status_code = Facebook.request(notifications_cb);
+  *notifications_flag_ret = notifications_flag;
+  return status_code;
+}
+
+/**
+ * First-class object
+ */
 
 // We have to initialize a static buffer for parsing JSON keys
 // and strings. This only needs to be as big as your largest key/string.

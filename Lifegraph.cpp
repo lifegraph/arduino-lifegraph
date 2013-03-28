@@ -160,6 +160,14 @@ void debugWifiState () {
  * JSON API
  */
 
+JSONAPI::JSONAPI (const char *host, const char *base, uint8_t *buf, int bufferSize)
+{
+  this->host = host;
+  this->base = base;
+  this->buffer = buf;
+  this->bufferSize = bufferSize;
+}
+
 void JSONAPI::get (const char *path) {
   this->hasBody = false;
   this->_headerStart("GET");
@@ -305,6 +313,9 @@ void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, cha
       break;
     }
   }
+
+  Serial.print("Read access token: ");
+  Serial.println(access_token);
 }
 
 void LifegraphAPI::configure (const char *app_namespace, const char *app_key, const char *app_secret) {
@@ -362,15 +373,7 @@ int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128])
   wifly.print("&secret=");
   wifly.print(this->secret);
   this->_headerEnd();
-  int ret = this->request( lifegraph_connect_cb );
-  
-  if (access_token[0] != 0) {
-    Serial.print("Read access token: ");
-    Serial.println(access_token);
-  } else {
-    Serial.println("Error: no access token.");
-  }
-  return ret;
+  return this->request( lifegraph_connect_cb );
 }
 
 
@@ -447,6 +450,7 @@ int FacebookAPI::unreadNotifications (const char *access_token, boolean *notific
  * Globals object
  */
 
-uint8_t buf[160];
-FacebookAPI Facebook(buf, sizeof(buf));
-LifegraphAPI Lifegraph(buf, sizeof(buf));
+uint8_t LIFEGRAPH_BUFFER[LIFEGRAPH_BUFFER_SIZE];
+
+FacebookAPI Facebook(LIFEGRAPH_BUFFER, LIFEGRAPH_BUFFER_SIZE);
+LifegraphAPI Lifegraph(LIFEGRAPH_BUFFER, LIFEGRAPH_BUFFER_SIZE);

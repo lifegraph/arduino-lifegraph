@@ -17,10 +17,13 @@ void debugWifiState ();
 class JSONAPI {
   
   public:
-    char *host;
-    char *base;
+    const char *host;
+    const char *base;
     uint8_t *buffer;
     int bufferSize;
+
+    JSONAPI () { }
+    JSONAPI (const char *host, const char *base, uint8_t *buf, int bufferSize);
     
     void get (const char *path);
     void post (const char *path);
@@ -83,6 +86,9 @@ class FacebookAPI : public JSONAPI {
 #define CB_MATCHES(x) (strncmp((char *) parser->buffer, x, parser->token_length) == 0)
 #define CB_MATCHES_KEY(x) parser->token_type == JSON_MAP_KEY && CB_MATCHES(x)
 
+// Buffer object.
+#define LIFEGRAPH_BUFFER_SIZE 160
+extern uint8_t LIFEGRAPH_BUFFER[LIFEGRAPH_BUFFER_SIZE];
 
 // Global objects.
 extern LifegraphAPI Lifegraph;

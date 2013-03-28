@@ -67,6 +67,8 @@ case 232: case 233: case 234: case 235: case 236: case 237: case 238: case 239
 #define CASES_UTF8_4 \
      240: case 241: case 242: case 243: case 244: case 245: case 246: case 247
 
+#define BUF_SIZE 160
+
 typedef enum
 {
     JS0N_STATE_GOSTRUCT         = 0,
@@ -78,10 +80,10 @@ typedef enum
 
 void PUSH ( js0n_parser_t * parser, int refpos )
 {
-    parser->mark = refpos == 0 ? 0 : 300 - refpos;
+    parser->mark = refpos == 0 ? 0 : BUF_SIZE - refpos;
     parser->buffer[parser->mark++] = parser->current;
-    if (parser->mark > 299) {
-        parser->mark -= 300;
+    if (parser->mark > (BUF_SIZE - 1)) {
+        parser->mark -= BUF_SIZE;
     }
 }
 
@@ -103,8 +105,8 @@ void next_char ( js0n_parser_t * parser )
 {
   parser->live = parser->stream->readBytes((char *) &(parser->current), 1);
   parser->buffer[parser->mark++] = parser->current;
-    if (parser->mark > 299) {
-        parser->mark -= 300;
+    if (parser->mark > (BUF_SIZE - 1)) {
+        parser->mark -= BUF_SIZE;
     }
   ++parser->cursor;
 }

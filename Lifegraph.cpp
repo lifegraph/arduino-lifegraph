@@ -2,11 +2,29 @@
 #include "Lifegraph.h"
 #include <WiFlyHQ.h>
 #include <SoftwareSerial.h>
+#include <sm130.h>
 
 WiFly wifly;
 
+/* Connect the WiFly serial to the serial monitor. */
+void terminal()
+{
+    while (1) {
+  if (wifly.available() > 0) {
+      Serial.write(wifly.read());
+  }
+
+
+  if (Serial.available() > 0) {
+      wifly.write(Serial.read());
+  }
+    }
+}
+
 boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass) {
   if (!wifly.begin(wifiSerial, &Serial)) {
+    Serial.println("Could not start Wifly module.");
+    terminal();
     return false;
   }
  
@@ -19,6 +37,7 @@ boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *p
  
     if (!wifly.join()) {
       Serial.println("Failed to join wifi network");
+      terminal();
       return false;
     }
   }
@@ -197,7 +216,7 @@ void JSONAPI::_headerStart (const char *method) {
   if (wifly.isConnected()) {
     wifly.close();
   }
-  
+
   if (!wifly.open(this->host, 80)) {
     Serial.println("Failed to connect to host.");
   }
@@ -224,6 +243,134 @@ void JSONAPI::_headerEnd () {
     wifly.println("Transfer-Encoding: chunked");
   }
   wifly.println();
+}
+
+
+/** 
+ * Lifegraph API
+ * Extends the JSONAPI with custom methods to connect to the Facebook API.
+ */
+
+LifegraphAPI::LifegraphAPI (uint8_t *buf, int bufferSize)
+{
+  this->host = "www.lifegraphconnect.com";
+  this->base = "/api";
+  this->buffer = buf;
+  this->bufferSize = bufferSize;
+}
+
+int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
+  rfid.begin();
+  
+  // Grab the firmware version
+  uint32_t versiondata = rfid.getFirmwareVersion();
+
+  // If nothing is returned, it didn't work. Loop forever
+  if (!versiondata) {
+    Serial.print("Didn't find RFID Shield. Check your connection to the Arduino board.");
+    while (1); 
+  }
+  
+   // We will store the results of our tag reading in these vars
+  uint8_t success = 0;
+  uint8_t uidLength = 0;
+
+  Serial.println("Waiting for tag...");
+
+  // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
+  // 'uid' will be populated with the UID, and uidLength will indicate the length
+  // If we succesfully received a tag and it has been greater than the time delay (in seconds)
+  while (!(success)) {
+    success = rfid.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+  }
+  
+  // Print the ID in hex format
+  Serial.print("Read a tag: ");
+  for (int i = 0; i < uidLength; i++) {
+    Serial.print(uid[i], HEX);
+  }
+  Serial.println("");
+
+  return uidLength;
+}
+
+uint8_t _physicalid[8] = { 0 };
+
+void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]) {
+  // Read identity.
+  while (true) {
+    int pidLength = this->readCard(rfid, _physicalid);
+    (*wifiSerial).listen();
+    if (this->connect(_physicalid, pidLength, access_token) == 200) {
+      break;
+    }
+  }
+}
+
+void LifegraphAPI::configure (const char *app_namespace, const char *app_key, const char *app_secret) {
+  this->ns = app_namespace;
+  this->key = app_key;
+  this->secret = app_secret;
+}
+
+char *lifegraph_connect_buffer = NULL;
+
+int lifegraph_connect_cb ( js0n_parser_t * parser )
+{
+  CB_BEGIN;
+  if (CB_MATCHES_KEY("oauthAccessToken")) {
+    CB_GET_NEXT_TOKEN;
+    int len = parser->token_length > 127 ? 127 : parser->token_length;
+    memcpy(lifegraph_connect_buffer, parser->buffer, len);
+  }
+  CB_END;
+}
+
+int json_debug_cb ( js0n_parser_t * parser )
+{
+  CB_BEGIN;
+  Serial.print(parser->token_type);
+  Serial.print(" ");
+  Serial.print(parser->token_length);
+  Serial.print(" ");
+  Serial.print("\"");
+  for (int i = 0; i < parser->token_length; i++) {
+    Serial.print((char) parser->buffer[i]);
+  }
+  Serial.print("\"");
+  Serial.println();
+  CB_END;
+}
+
+int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128]) {
+  lifegraph_connect_buffer = access_token;
+  memset(access_token, '\0', 128);
+
+  this->hasBody = false;
+  this->_headerStart("GET");
+  this->_headerPath("tokens");
+  wifly.print("/");
+  char token[3];
+  for (int i = 0; i < uidLength; i++) {
+    snprintf(token, 3, "%02x", uid[i]);
+    wifly.print(token);
+  }
+  wifly.print("?namespace=");
+  wifly.print(this->ns);
+  wifly.print("&key=");
+  wifly.print(this->key);
+  wifly.print("&secret=");
+  wifly.print(this->secret);
+  this->_headerEnd();
+  int ret = this->request( lifegraph_connect_cb );
+  
+  if (access_token[0] != 0) {
+    Serial.print("Read access token: ");
+    Serial.println(access_token);
+  } else {
+    Serial.println("Error: no access token.");
+  }
+  return ret;
 }
 
 
@@ -297,8 +444,9 @@ int FacebookAPI::unreadNotifications (const char *access_token, boolean *notific
 
 
 /**
- * Global Facebook object
+ * Globals object
  */
 
-uint8_t buf[300];
+uint8_t buf[160];
 FacebookAPI Facebook(buf, sizeof(buf));
+LifegraphAPI Lifegraph(buf, sizeof(buf));

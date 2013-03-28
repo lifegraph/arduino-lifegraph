@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <SoftwareSerial.h>
+#include <sm130.h>
 
 
 // Wifi.
@@ -33,6 +34,23 @@ class JSONAPI {
     void _headerPath (const char *path);
     void _headerEnd ();
     void _chunk (const char *str, int len);
+};
+
+
+// Lifegraph API.
+class LifegraphAPI : public JSONAPI {
+
+  public:
+    const char *ns;
+    const char *key;
+    const char *secret;
+
+    LifegraphAPI (uint8_t *buf, int bufferSize);
+
+    void configure (const char *app_namespace, const char *app_key, const char *app_secret);
+    int readCard (NFCReader rfid, uint8_t uid[8]);
+    void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
+    int connect (uint8_t uid[], int uidLength, char access_token[128]);
 };
 
 
@@ -66,5 +84,6 @@ class FacebookAPI : public JSONAPI {
 #define CB_MATCHES_KEY(x) parser->token_type == JSON_MAP_KEY && CB_MATCHES(x)
 
 
-// Global Facebook object.
+// Global objects.
+extern LifegraphAPI Lifegraph;
 extern FacebookAPI Facebook;

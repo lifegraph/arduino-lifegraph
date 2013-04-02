@@ -66,10 +66,10 @@ class FacebookAPI : public JSONAPI {
     int postStatus (const char *access_token, const char *status);
     int unreadNotifications (const char *access_token, boolean *notifications_flag_ret);
 
-  protected:
     void get (const char *path, const char *access_token);
     void post (const char *path, const char *access_token);
 
+  protected:
     void _headerPath (const char *path, const char *access_token);
 };
 

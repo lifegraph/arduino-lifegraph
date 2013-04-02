@@ -4,13 +4,12 @@
  */
 
 #include <WiFlyHQ.h>
+#include <sm130.h>
 #include <Lifegraph.h>
 
 #include <SoftwareSerial.h>
 SoftwareSerial wifiSerial(9, 10);
 
-#include <SoftwareSerial.h>
-#include <sm130.h>
 NFCReader rfid(7, 8);
 
 /**

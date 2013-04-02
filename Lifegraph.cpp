@@ -391,6 +391,9 @@ FacebookAPI::FacebookAPI (uint8_t *buf, int bufferSize)
 }
 
 void FacebookAPI::get (const char *access_token, const char *path) {
+  Serial.print("GET http://graph.facebook.com/");
+  Serial.println(path);
+
   this->hasBody = false;
   this->_headerStart("GET");
   this->_headerPath(path, access_token);
@@ -398,6 +401,9 @@ void FacebookAPI::get (const char *access_token, const char *path) {
 }
 
 void FacebookAPI::post (const char *access_token, const char *path) {
+  Serial.print("POST http://graph.facebook.com/");
+  Serial.println(path);
+
   this->hasBody = true;
   this->_headerStart("POST");
   this->_headerPath(path, access_token);

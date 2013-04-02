@@ -46,7 +46,7 @@ void setup()
   int status_code = 0;
   
   do {
-    // Read if there are unread notifications on the server.
+    // Make a facebook request to get information on the lifegraphlabs Facebook Page
     Facebook.get ( NULL, "lifegraphlabs" );
     status_code = Facebook.request();
     

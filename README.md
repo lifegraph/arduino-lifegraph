@@ -1,5 +1,7 @@
 # Lifegraph Arduino library
 
+**VERSION 0.5**
+
 ## Installation
 
 ```

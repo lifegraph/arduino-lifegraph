@@ -408,9 +408,11 @@ void FacebookAPI::_headerPath (const char *path, const char *access_token) {
   wifly.print(this->base);
   wifly.print("/");
   wifly.print(path);
-  wifly.print(strstr(path, "?") == 0 ? "?" : "&");
-  wifly.print("access_token=");
-  wifly.print(access_token);
+  if (access_token != 0) {
+    wifly.print(strstr(path, "?") == 0 ? "?" : "&");
+    wifly.print("access_token=");
+    wifly.print(access_token);
+  }
 }
 
 // postStatus

@@ -54,6 +54,7 @@ class LifegraphAPI : public JSONAPI {
     int readCard (NFCReader rfid, uint8_t uid[8]);
     void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
     int connect (uint8_t uid[], int uidLength, char access_token[128]);
+    void stringifyTag (uint8_t uid[], int uidLength, char output[]);
 };
 
 

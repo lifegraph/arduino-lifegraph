@@ -1,14 +1,16 @@
 # Lifegraph Arduino library
 
-**VERSION 0.5**
+**VERSION 0.6**
 
 ## Installation
+
+This library dependso on the WiFlyHQ and (optionally) the sm130 library.
 
 ```
 $ mkdir -p ~/Documents/Arduino/libraries
 $ git clone https://github.com/harlequin-tech/WiFlyHQ.git ~/Documents/Arduino/libraries/WiFlyHQ
-$ git clone https://github.com/lifegraph/arduino-lifegraph.git ~/Documents/Arduino/libraries/Lifegraph
 $ git clone https://github.com/lifegraph/sm130.git ~/Documents/Arduino/libraries/sm130
+$ git clone https://github.com/lifegraph/arduino-lifegraph.git ~/Documents/Arduino/libraries/Lifegraph
 ```
 
 ## Examples

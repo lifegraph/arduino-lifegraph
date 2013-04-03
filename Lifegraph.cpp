@@ -376,6 +376,17 @@ int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128])
   return this->request( lifegraph_connect_cb );
 }
 
+void LifegraphAPI::stringifyTag (uint8_t uid[], int uidLength, char output[]) {
+  char token[3];
+  int i;
+  for (i = 0; i < uidLength; i++) {
+    snprintf(token, 3, "%02x", uid[i]);
+    output[(i * 2) + 0] = token[0];
+    output[(i * 2) + 1] = token[1];
+  }
+  output[(i * 2)] = '\0';
+}
+
 
 /** 
  * Facebook API

@@ -8,6 +8,7 @@
 $ mkdir -p ~/Documents/Arduino/libraries
 $ git clone https://github.com/harlequin-tech/WiFlyHQ.git ~/Documents/Arduino/libraries/WiFlyHQ
 $ git clone https://github.com/lifegraph/arduino-lifegraph.git ~/Documents/Arduino/libraries/Lifegraph
+$ git clone https://github.com/lifegraph/sm130.git ~/Documents/Arduino/libraries/sm130
 ```
 
 ## Examples

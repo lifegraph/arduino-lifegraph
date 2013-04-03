@@ -4,7 +4,6 @@
  */
 
 #include <WiFlyHQ.h>
-#include <sm130.h>
 #include <Lifegraph.h>
 
 #include <SoftwareSerial.h>

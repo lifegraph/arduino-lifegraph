@@ -23,7 +23,7 @@ void terminal()
 
 boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass) {
   if (!wifly.begin(wifiSerial, &Serial)) {
-    Serial.println("Could not start Wifly module.");
+    Serial.println(F("Could not start Wifly module."));
     terminal();
     return false;
   }
@@ -36,7 +36,7 @@ boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *p
     wifly.setDeviceID("Wifly-WebClient");
  
     if (!wifly.join()) {
-      Serial.println("Failed to join wifi network");
+      Serial.println(F("Failed to join wifi network"));
       terminal();
       return false;
     }
@@ -92,7 +92,7 @@ void readResponseHeaders (int *status_code, int *content_len) {
       return;
     }
     
-    if (strncmp(buf, "Content-Length", sizeof(buf)) == 0) {
+    if (strncmp(buf, "Content-Length", len) == 0) {
       len = wifly.readBytesUntil('\n', buf, sizeof(buf));
       if (len == 0) {
         return;
@@ -143,15 +143,15 @@ void parseUrl (char *url, char *host, char **path) {
  
 void debugWifiState () {
   char buf[32];
-  Serial.print("MAC: ");
+  Serial.print(F("MAC: "));
   Serial.println(wifly.getMAC(buf, sizeof(buf)));
-  Serial.print("IP: ");
+  Serial.print(F("IP: "));
   Serial.println(wifly.getIP(buf, sizeof(buf)));
-  Serial.print("Netmask: ");
+  Serial.print(F("Netmask: "));
   Serial.println(wifly.getNetmask(buf, sizeof(buf)));
-  Serial.print("Gateway: ");
+  Serial.print(F("Gateway: "));
   Serial.println(wifly.getGateway(buf, sizeof(buf)));
-  Serial.print("DeviceID: ");
+  Serial.print(F("DeviceID: "));
   Serial.println(wifly.getDeviceID(buf, sizeof(buf)));
 }
 
@@ -226,7 +226,7 @@ void JSONAPI::_headerStart (const char *method) {
   }
 
   if (!wifly.open(this->host, 80)) {
-    Serial.println("Failed to connect to host.");
+    Serial.println(F("Failed to connect to host."));
   }
   
   wifly.print(method);
@@ -275,7 +275,7 @@ int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
 
   // If nothing is returned, it didn't work. Loop forever
   if (!versiondata) {
-    Serial.print("Didn't find RFID Shield. Check your connection to the Arduino board.");
+    Serial.print(F("Didn't find RFID Shield. Check your connection to the Arduino board."));
     while (1); 
   }
   
@@ -283,7 +283,7 @@ int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
   uint8_t success = 0;
   uint8_t uidLength = 0;
 
-  Serial.println("Waiting for tag...");
+  Serial.println(F("Waiting for tag..."));
 
   // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
   // 'uid' will be populated with the UID, and uidLength will indicate the length
@@ -293,11 +293,11 @@ int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
   }
   
   // Print the ID in hex format
-  Serial.print("Read a tag: ");
+  Serial.print(F("Read a tag: "));
   for (int i = 0; i < uidLength; i++) {
     Serial.print(uid[i], HEX);
   }
-  Serial.println("");
+  Serial.println(F(""));
 
   return uidLength;
 }
@@ -314,7 +314,7 @@ void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, cha
     }
   }
 
-  Serial.print("Read access token: ");
+  Serial.print(F("Read access token: "));
   Serial.println(access_token);
 }
 
@@ -341,14 +341,14 @@ int json_debug_cb ( js0n_parser_t * parser )
 {
   CB_BEGIN;
   Serial.print(parser->token_type);
-  Serial.print(" ");
+  Serial.print(F(" "));
   Serial.print(parser->token_length);
-  Serial.print(" ");
-  Serial.print("\"");
+  Serial.print(F(" "));
+  Serial.print(F("\""));
   for (int i = 0; i < parser->token_length; i++) {
     Serial.print((char) parser->buffer[i]);
   }
-  Serial.print("\"");
+  Serial.print(F("\""));
   Serial.println();
   CB_END;
 }
@@ -391,7 +391,7 @@ FacebookAPI::FacebookAPI (uint8_t *buf, int bufferSize)
 }
 
 void FacebookAPI::get (const char *access_token, const char *path) {
-  Serial.print("GET http://graph.facebook.com/");
+  Serial.print(F("GET http://graph.facebook.com/"));
   Serial.println(path);
 
   this->hasBody = false;
@@ -401,7 +401,7 @@ void FacebookAPI::get (const char *access_token, const char *path) {
 }
 
 void FacebookAPI::post (const char *access_token, const char *path) {
-  Serial.print("POST http://graph.facebook.com/");
+  Serial.print(F("POST http://graph.facebook.com/"));
   Serial.println(path);
 
   this->hasBody = true;

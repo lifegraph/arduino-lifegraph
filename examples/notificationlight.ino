@@ -5,10 +5,10 @@
 
 #include <WiFlyHQ.h>
 #include <sm130.h>
+#include <SoftwareSerial.h>
 #include <Lifegraph.h>
 
-#include <SoftwareSerial.h>
-SoftwareSerial wifiSerial(2,3);
+SoftwareSerial wifiSerial(9, 10);
 
 
 /**

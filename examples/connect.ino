@@ -5,34 +5,33 @@
 
 #include <WiFlyHQ.h>
 #include <sm130.h>
+#include <SoftwareSerial.h>
 #include <Lifegraph.h>
 
-#include <SoftwareSerial.h>
 SoftwareSerial wifiSerial(9, 10);
-
 NFCReader rfid(7, 8);
+
 
 /**
  * Configuration
  */
  
-const char mySSID[] = "...";
-const char myPassword[] = "...";
+const char mySSID[] = "OLIN_GUEST";
+const char myPassword[] = "The_Phoenix_Flies";
 
-char access_token[128] = { 0 };
 const char app_namespace[] = "...";
 const char app_key[] = "...";
 const char app_secret[] = "...";
+
+char access_token[128] = { 0 };
  
 // Pin our LED is connected to.
 int light = 13;
  
+ 
 /**
  * Setup
  */
-
-// Store physical ID from RFID tag.
-uint8_t physicalid[8] = { 0 };
  
 void setup()
 {
@@ -41,13 +40,13 @@ void setup()
   wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
   
-  Serial.println("Connecting...");
+  Serial.println(F("Connecting..."));
  
   // Setup network connection.
   if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
-    Serial.println("Failed to join network.");
+    Serial.println(F("Failed to join network."));
   } else {
-    Serial.println("Joined wifi network.");
+    Serial.println(F("Joined wifi network."));
   }
   
   // Initialize access tokens.
@@ -66,8 +65,8 @@ void loop() {
   }
 
   // Notify terminal of our success.
-  Serial.print("Response: ");
+  Serial.print(F("Response: "));
   Serial.print(status_code);
-  Serial.print(" Unread notifications:");
+  Serial.print(F(" Unread notifications:"));
   Serial.println(notifications_flag, HEX);
 }

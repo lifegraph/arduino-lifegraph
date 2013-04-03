@@ -10,16 +10,19 @@
 
 SoftwareSerial wifiSerial(9, 10);
 
+
 /**
  * Configuration
  */
  
+// Wifi configuration for a WPA network.
 const char mySSID[] = "...";
 const char myPassword[] = "...";
  
 // Pin our LED is connected to.
 int light = 13;
  
+
 /**
  * Setup
  */
@@ -34,35 +37,37 @@ void setup()
   wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
   
-  Serial.println("Connecting...");
- 
   // Setup network connection.
+  Serial.println(F("Connecting to Wifi..."));
   if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
     Serial.println(F("Failed to join network."));
+    while (true) {
+      // Hang forever.
+    }
   } else {
     Serial.println(F("Joined wifi network."));
   }
-  
-  int status_code = 0;
-  
-  do {
-    // Read if there are unread notifications on the server.
-    Facebook.get ( NULL, "lifegraphlabs" );
-    status_code = Facebook.request();
-    
-    // If the request is successful, update the light.
-    digitalWrite(light, status_code == 200);
-
-    // Notify terminal of our success.
-    Serial.print("HTTP Response: ");
-    Serial.println(status_code);
-   
-    // Repeat until we make a successful HTTP request.
-    // Wifly occasionally returns "0".
-    delay(3000);
-  } while (status_code != 200);
 }
 
-void loop () {
-  return;
+void loop () {  
+  // Make an HTTP request for graph.facebook.com/lifegraphlabs
+  Facebook.get ( NULL, "lifegraphlabs" );
+  int status_code = Facebook.request();
+  
+  // The request is successful if it returns an HTTP status code
+  // of "200" (HTTP OK). Update the light accordingly.
+  digitalWrite(light, status_code == 200 ? HIGH : LOW);
+
+  // Notify terminal of our status.
+  Serial.print("HTTP Status Code: ");
+  Serial.println(status_code);
+ 
+  // If successful, stop making requests.
+  // (Wifly occasionally returns "0" instead of "200".)
+  while (status_code == 200) {
+    // Hang forever
+  }
+  
+  // Otherwise, delay, and repeat until we make a successful HTTP request.
+  delay(3000);
 }

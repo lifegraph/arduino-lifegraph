@@ -16,14 +16,19 @@ NFCReader rfid(7, 8);
  * Configuration
  */
  
-const char mySSID[] = "OLIN_GUEST";
-const char myPassword[] = "The_Phoenix_Flies";
+// Wifi configuration for a WPA network.
+const char mySSID[] = "...";
+const char myPassword[] = "...";
 
+// Lifegraph Connect manages access tokens for us.
+// Create an empty access token we can populate once an RFID card is tagged in.
+char access_token[128] = { 0 };
+
+// We need an application's credentials (namespace, key, and secret)
+// to request a user's access tokens from Facebook.
 const char app_namespace[] = "...";
 const char app_key[] = "...";
 const char app_secret[] = "...";
-
-char access_token[128] = { 0 };
  
 // Pin our LED is connected to.
 int light = 13;
@@ -39,12 +44,14 @@ void setup()
   Serial.begin(9600);
   wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
-  
-  Serial.println(F("Connecting..."));
  
   // Setup network connection.
+  Serial.println(F("Connecting to Wifi..."));
   if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
     Serial.println(F("Failed to join network."));
+    while (true) {
+      // Hang forever.
+    }
   } else {
     Serial.println(F("Joined wifi network."));
   }
@@ -54,19 +61,20 @@ void setup()
   Lifegraph.readIdentity(rfid, &wifiSerial, access_token);
 }
 
-void loop() {
-  // Read if there are unread notifications on the server.
-  boolean notifications_flag;
-  int status_code = Facebook.unreadNotifications ( access_token, &notifications_flag );
+void loop()
+{ 
+  // Request if there are unread notifications on Facebook.
+  int unread_count;
+  int status_code = Facebook.unreadNotifications ( access_token, &unread_count );
   
-  // If the request is successful, update the light.
+  // If the request is successful (HTTP OK), update the light accordingly.
   if (status_code == 200) {
-    digitalWrite(light, notifications_flag ? HIGH : LOW);
+    digitalWrite(light, unread_count > 0 ? HIGH : LOW);
   }
 
-  // Notify terminal of our success.
-  Serial.print(F("Response: "));
+  // Notify terminal of our status.
+  Serial.print("HTTP Status Code: ");
   Serial.print(status_code);
-  Serial.print(F(" Unread notifications:"));
-  Serial.println(notifications_flag, HEX);
+  Serial.print(" Unread notifications: ");
+  Serial.println(unread_count);
 }

@@ -64,7 +64,7 @@ class FacebookAPI : public JSONAPI {
     FacebookAPI (uint8_t *buf, int bufferSize);
 
     int postStatus (const char *access_token, const char *status);
-    int unreadNotifications (const char *access_token, boolean *notifications_flag_ret);
+    int unreadNotifications (const char *access_token, int *unread_count);
 
     void get (const char *path, const char *access_token);
     void post (const char *path, const char *access_token);

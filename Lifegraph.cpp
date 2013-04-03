@@ -431,25 +431,23 @@ int FacebookAPI::postStatus (const char *access_token, const char *status) {
 
 // unreadNotifications
 
-boolean notifications_flag;
+int notifications_count;
 
 int notifications_cb ( js0n_parser_t * parser )
 {
   CB_BEGIN;
-  if (CB_MATCHES_KEY("unread")) {
+  if (CB_MATCHES_KEY("unseen_count")) {
     CB_GET_NEXT_TOKEN;
-    if (parser->buffer[0] != '0') {
-      notifications_flag = 1;
-    }
+    notifications_count = atoi((char *) parser->buffer);
   }
   CB_END;
 }
 
-int FacebookAPI::unreadNotifications (const char *access_token, boolean *notifications_flag_ret) {
-  notifications_flag = 0;
+int FacebookAPI::unreadNotifications (const char *access_token, int *notifications_count_ret) {
+  notifications_count = 0;
   Facebook.get(access_token, "me/notifications?limit=1");
   int status_code = Facebook.request(notifications_cb);
-  *notifications_flag_ret = notifications_flag;
+  *notifications_count_ret = notifications_count;
   return status_code;
 }
 

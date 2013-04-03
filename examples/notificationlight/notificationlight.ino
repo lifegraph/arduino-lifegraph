@@ -15,14 +15,15 @@ SoftwareSerial wifiSerial(9, 10);
  * Configuration
  */
  
+ // Wifi configuration for a WPA network.
 const char mySSID[] = "...";
 const char myPassword[] = "...";
 
 // To make a request, you'll need an access token.
 // For temporary one, use the Graph API Explorer: https://developers.facebook.com/tools/explorer
-// and request a token with "manage_notifications" and "publish_stream" permissions.
-// But take note: Graph API Explorer access tokens expires every hour.
-const char access_token[] = "...";
+// and request a token with the "manage_notifications" permission.
+// Take note: Graph API Explorer access tokens expires every hour.
+char access_token[128] = "...";
  
 // Pin our LED is connected to.
 int light = 13;
@@ -38,30 +39,32 @@ void setup()
   wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
   
-  Serial.println("Connecting...");
- 
   // Setup network connection.
+  Serial.println(F("Connecting to Wifi..."));
   if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
-    Serial.println("Failed to join network.");
+    Serial.println(F("Failed to join network."));
+    while (true) {
+      // Hang forever.
+    }
   } else {
-    Serial.println("Joined wifi network.");
+    Serial.println(F("Joined wifi network."));
   }
 }
 
 void loop()
 { 
-  // Read if there are unread notifications on the server.
-  boolean notifications_flag;
-  int status_code = Facebook.unreadNotifications ( access_token, &notifications_flag );
+  // Request if there are unread notifications on Facebook.
+  int unread_count;
+  int status_code = Facebook.unreadNotifications ( access_token, &unread_count );
   
-  // If the request is successful, update the light.
+  // If the request is successful (HTTP OK), update the light accordingly.
   if (status_code == 200) {
-    digitalWrite(light, notifications_flag ? HIGH : LOW);
+    digitalWrite(light, unread_count > 0 ? HIGH : LOW);
   }
 
-  // Notify terminal of our success.
-  Serial.print("Response: ");
+  // Notify terminal of our status.
+  Serial.print("HTTP Status Code: ");
   Serial.print(status_code);
-  Serial.print(" Unread notifications:");
-  Serial.println(notifications_flag, HEX);
+  Serial.print(" Unread notifications: ");
+  Serial.println(unread_count);
 }

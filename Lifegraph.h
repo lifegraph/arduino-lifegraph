@@ -1,16 +1,20 @@
-#include <js0n.h>
-#include <Arduino.h>
-#include <WiFlyHQ.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <SoftwareSerial.h>
-#include <sm130.h>
+
+#include <Arduino.h>
+
+#include <js0n.h>
+
+#include <SPI.h>
+#include <WiFly.h>
+
+#include <Wire.h>
+#include <Adafruit_NFCShield_I2C.h>
 
 
 // Wifi.
-extern WiFly wifly;
-boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass);
-void debugWifiState ();
+// boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass);
+// void debugWifiState ();
 
 
 // JSON API
@@ -39,6 +43,8 @@ class JSONAPI {
     void _chunk (const char *str, int len);
 };
 
+int json_debug_cb ( js0n_parser_t * parser );
+
 
 // Lifegraph API.
 class LifegraphAPI : public JSONAPI {
@@ -51,8 +57,8 @@ class LifegraphAPI : public JSONAPI {
     LifegraphAPI (uint8_t *buf, int bufferSize);
 
     void configure (const char *app_namespace, const char *app_key, const char *app_secret);
-    int readCard (NFCReader rfid, uint8_t uid[8]);
-    void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
+    int readCard (Adafruit_NFCShield_I2C rfid, uint8_t uid[8]);
+    void readIdentity (Adafruit_NFCShield_I2C rfid, char access_token[128]);
     int connect (uint8_t uid[], int uidLength, char access_token[128]);
 };
 
@@ -64,7 +70,7 @@ class FacebookAPI : public JSONAPI {
     FacebookAPI (uint8_t *buf, int bufferSize);
 
     int postStatus (const char *access_token, const char *status);
-    int unreadNotifications (const char *access_token, boolean *notifications_flag_ret);
+    int unreadNotifications (const char *access_token, int *unread_count);
 
     void get (const char *path, const char *access_token);
     void post (const char *path, const char *access_token);

@@ -3,14 +3,15 @@
  * This sketch is released to the public domain.
  */
 
-#include <WiFlyHQ.h>
-#include <sm130.h>
+#include <SPI.h>
+#include <WiFly.h>
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <Adafruit_NFCShield_I2C.h>
 #include <Lifegraph.h>
 
-#include <SoftwareSerial.h>
-SoftwareSerial wifiSerial(9, 10);
+Adafruit_NFCShield_I2C rfid(2, 3);
 
-NFCReader rfid(7, 8);
 
 /**
  * Configuration
@@ -19,55 +20,63 @@ NFCReader rfid(7, 8);
 const char mySSID[] = "...";
 const char myPassword[] = "...";
 
+// Lifegraph Connect manages access tokens for us.
+// Create an empty access token we can populate once an RFID card is tagged in.
 char access_token[128] = { 0 };
+
+// We need an application's credentials (namespace, key, and secret)
+// to request a user's access tokens from Facebook.
 const char app_namespace[] = "...";
 const char app_key[] = "...";
 const char app_secret[] = "...";
  
 // Pin our LED is connected to.
-int light = 13;
+int light = 6;
  
+
 /**
  * Setup
  */
-
-// Store physical ID from RFID tag.
-uint8_t physicalid[8] = { 0 };
  
 void setup()
 {
   // Setup ports.
   Serial.begin(9600);
-  wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
   
-  Serial.println("Connecting...");
+  Serial.println("Connecting to Wi-Fi...");
  
-  // Setup network connection.
-  if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
+  // Setup WiFly and wireless network.
+  WiFly.begin();
+  if (!WiFly.join(mySSID, myPassword)) {
     Serial.println("Failed to join network.");
-  } else {
-    Serial.println("Joined wifi network.");
+    while (true) {
+      // Hang forever
+    }
   }
+  Serial.println("Joined wifi network.");
+  WiFly.configure(WIFLY_BAUD, 9600);
   
-  // Initialize access tokens.
+  // Initialize Lifegraph. Then wait until the user tags an RFID
+  // card, read it, and retrieve an access token for the given user.
   Lifegraph.configure(app_namespace, app_key, app_secret);
-  Lifegraph.readIdentity(rfid, &wifiSerial, access_token);
+  Lifegraph.readIdentity(rfid, access_token);
 }
 
-void loop() {
-  // Read if there are unread notifications on the server.
-  boolean notifications_flag;
-  int status_code = Facebook.unreadNotifications ( access_token, &notifications_flag );
+void loop()
+{ 
+  // Request if there are unread notifications on Facebook.
+  int unread_count;
+  int status_code = Facebook.unreadNotifications ( access_token, &unread_count );
   
-  // If the request is successful, update the light.
+  // If the request is successful (HTTP OK), update the light accordingly.
   if (status_code == 200) {
-    digitalWrite(light, notifications_flag ? HIGH : LOW);
+    digitalWrite(light, unread_count > 0 ? HIGH : LOW);
   }
 
-  // Notify terminal of our success.
-  Serial.print("Response: ");
+  // Notify terminal of our status.
+  Serial.print("HTTP Status Code: ");
   Serial.print(status_code);
-  Serial.print(" Unread notifications:");
-  Serial.println(notifications_flag, HEX);
+  Serial.print(" Unread notifications: ");
+  Serial.println(unread_count);
 }

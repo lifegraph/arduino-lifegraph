@@ -1,48 +1,12 @@
 #include <Arduino.h>
 #include "Lifegraph.h"
-#include <WiFlyHQ.h>
-#include <SoftwareSerial.h>
-#include <sm130.h>
-
-WiFly wifly;
-
-/* Connect the WiFly serial to the serial monitor. */
-void terminal()
-{
-    while (1) {
-  if (wifly.available() > 0) {
-      Serial.write(wifly.read());
-  }
+#include <SPI.h>
+#include <WiFly.h>
+#include <Wire.h>
+#include <Adafruit_NFCShield_I2C.h>
 
 
-  if (Serial.available() > 0) {
-      wifly.write(Serial.read());
-  }
-    }
-}
-
-boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass) {
-  if (!wifly.begin(wifiSerial, &Serial)) {
-    Serial.println("Could not start Wifly module.");
-    terminal();
-    return false;
-  }
- 
-  // Join wifi network if not already associated
-  if (!wifly.isAssociated()) {
-    wifly.setSSID(ssid);
-    wifly.setPassphrase(pass);
-    wifly.enableDHCP();
-    wifly.setDeviceID("Wifly-WebClient");
- 
-    if (!wifly.join()) {
-      Serial.println("Failed to join wifi network");
-      terminal();
-      return false;
-    }
-  }
-  return true;
-}
+WiFlyClient client("example.com", 80);
 
 void readResponseHeaders (int *status_code, int *content_len) {
   boolean line_start = true;
@@ -51,21 +15,21 @@ void readResponseHeaders (int *status_code, int *content_len) {
   *content_len = *status_code = 0;
 
   // HTTP/1.1 xxx
-  if (wifly.readBytes(buf, 9) == 0) {
+  if (client.readBytes(buf, 9) == 0) {
     return;
   }
-  if (wifly.readBytes(buf, 3) == 0) {
+  if (client.readBytes(buf, 3) == 0) {
     return;
   }
   buf[3] = '\0';
   *status_code = strtol(buf, NULL, 10);
-  if (wifly.readBytesUntil('\n', buf, sizeof(buf)) == 0) {
+  if (client.readBytesUntil('\n', buf, sizeof(buf)) == 0) {
     return;
   }
 
   while (true) {
     // Read first character of line.
-    if (wifly.readBytes(buf, 1) == 0) {
+    if (client.readBytes(buf, 1) == 0) {
       return;
     }
     char ch = buf[0];
@@ -74,7 +38,7 @@ void readResponseHeaders (int *status_code, int *content_len) {
       // Beginning content.
       if (ch == '\r') {
         // read ...\n\r\n
-        if (wifly.readBytes(buf, 1) == 0) { 
+        if (client.readBytes(buf, 1) == 0) { 
           return;
         }
         break;
@@ -82,25 +46,27 @@ void readResponseHeaders (int *status_code, int *content_len) {
     }
      
     // Read header name. 
-    len = wifly.readBytesUntil(':', &buf[1], sizeof(buf) - 2);
+    len = client.readBytesUntil(':', &buf[1], sizeof(buf) - 2);
     if (len == 0) {
       return;
     }
+    len += 1;
     buf[len + 1] = '\0';
+
     // space
-    if (wifly.readBytes(toss, 1) == 0) { 
+    if (client.readBytes(toss, 1) == 0) { 
       return;
     }
     
-    if (strncmp(buf, "Content-Length", sizeof(buf)) == 0) {
-      len = wifly.readBytesUntil('\n', buf, sizeof(buf));
+    if (strncmp(buf, "Content-Length", len) == 0) {
+      len = client.readBytesUntil('\n', buf, sizeof(buf));
       if (len == 0) {
         return;
       }
       buf[len] = '\0';
       *content_len = atoi(buf);
     } else {   
-      if (wifly.readBytesUntil('\n', buf, sizeof(buf)) == 0) {
+      if (client.readBytesUntil('\n', buf, sizeof(buf)) == 0) {
         return;
       }
     }
@@ -109,12 +75,12 @@ void readResponseHeaders (int *status_code, int *content_len) {
 
 void readResponse (char *buf, int max_len, int content_len) {
   // Read content.
-  int len = wifly.readBytes(buf, max_len > content_len ? content_len : max_len);
+  int len = client.readBytes(buf, max_len > content_len ? content_len : max_len);
   buf[len] = '\0'; // insurance
   
   // Flush buffer.
-  while (wifly.available() > 0) {
-    wifly.read();
+  while (client.available() > 0) {
+    client.read();
   }
 }
  
@@ -141,19 +107,19 @@ void parseUrl (char *url, char *host, char **path) {
   host[hostlen > 0 ? hostlen - 1 : hostlen] = '\0';
 }
  
-void debugWifiState () {
-  char buf[32];
-  Serial.print("MAC: ");
-  Serial.println(wifly.getMAC(buf, sizeof(buf)));
-  Serial.print("IP: ");
-  Serial.println(wifly.getIP(buf, sizeof(buf)));
-  Serial.print("Netmask: ");
-  Serial.println(wifly.getNetmask(buf, sizeof(buf)));
-  Serial.print("Gateway: ");
-  Serial.println(wifly.getGateway(buf, sizeof(buf)));
-  Serial.print("DeviceID: ");
-  Serial.println(wifly.getDeviceID(buf, sizeof(buf)));
-}
+// void debugWifiState () {
+//   char buf[32];
+//   Serial.print("MAC: ");
+//   Serial.println(client.getMAC(buf, sizeof(buf)));
+//   Serial.print("IP: ");
+//   Serial.println(client.getIP(buf, sizeof(buf)));
+//   Serial.print("Netmask: ");
+//   Serial.println(client.getNetmask(buf, sizeof(buf)));
+//   Serial.print("Gateway: ");
+//   Serial.println(client.getGateway(buf, sizeof(buf)));
+//   Serial.print("DeviceID: ");
+//   Serial.println(client.getDeviceID(buf, sizeof(buf)));
+// }
 
 
 /**
@@ -182,23 +148,40 @@ void JSONAPI::post (const char *path) {
   this->_headerEnd();
 }
 
+int json_debug_cb ( js0n_parser_t * parser )
+{
+  CB_BEGIN;
+  Serial.print(parser->token_type);
+  Serial.print(" ");
+  Serial.print(parser->token_length);
+  Serial.print(" ");
+  Serial.print("\"");
+  for (int i = 0; i < parser->token_length; i++) {
+    Serial.print((char) parser->buffer[i]);
+  }
+  Serial.print("\"");
+  Serial.println();
+  CB_END;
+}
+
 int JSONAPI::request ( ) {
   return this->request(NULL);
 }
 
 int JSONAPI::request ( js0n_user_cb_t cb ) {
   if (this->hasBody) {
-    wifly.println("0");
-    wifly.println();
+    client.println("0");
+    client.println();
   }
   
   js0n_parser_t parser;
   parser.buffer = this->buffer;
-  parser.stream = &wifly;
+  parser.stream = &client;
   parser.user_cb = cb;
   
   int status_code = 0;
   readResponseHeaders(&status_code, (int *) &parser.length);
+
   if (status_code != 0 && status_code < 500) {
     int parse_status = js0n_parse ( &parser );
   }
@@ -215,42 +198,39 @@ void JSONAPI::form (const char *name, const char *value) {
 void JSONAPI::_chunk (const char *str, int len) {
   char lenstr[12];
   sprintf(lenstr, "%X", len);
-  wifly.println(lenstr);
-  wifly.println(str);
+  client.println(lenstr);
+  client.println(str);
 }
 
 void JSONAPI::_headerStart (const char *method) {
-  // If an old connection is active, close.
-  if (wifly.isConnected()) {
-    wifly.close();
-  }
-
-  if (!wifly.open(this->host, 80)) {
+  client.stop();
+  client._domain = this->host;
+  if (!client.connect()) {
     Serial.println("Failed to connect to host.");
   }
   
-  wifly.print(method);
-  wifly.print(" ");
-  // wifly.print("http://");
-  // wifly.print(this->host);
+  client.print(method);
+  client.print(" ");
+  // client.print("http://");
+  // client.print(this->host);
 }
 
 void JSONAPI::_headerPath (const char *path) {
-  wifly.print(this->base);
-  wifly.print("/");
-  wifly.print(path);
+  client.print(this->base);
+  client.print("/");
+  client.print(path);
 }
 
 void JSONAPI::_headerEnd () {
-  wifly.println(" HTTP/1.1"); // paste your number here
-  wifly.print("Host: ");
-  wifly.println(this->host);
-  wifly.println("User-Agent: lifegraph/0.0.1");
+  client.println(" HTTP/1.1"); // paste your number here
+  client.print("Host: ");
+  client.println(this->host);
+  client.println("User-Agent: lifegraph/0.0.1");
   if (this->hasBody) {
-    wifly.println("Content-Type: application/x-www-form-urlencoded");
-    wifly.println("Transfer-Encoding: chunked");
+    client.println("Content-Type: application/x-www-form-urlencoded");
+    client.println("Transfer-Encoding: chunked");
   }
-  wifly.println();
+  client.println();
 }
 
 
@@ -267,11 +247,16 @@ LifegraphAPI::LifegraphAPI (uint8_t *buf, int bufferSize)
   this->bufferSize = bufferSize;
 }
 
-int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
+int LifegraphAPI::readCard(Adafruit_NFCShield_I2C rfid, uint8_t uid[8]) {
   rfid.begin();
+
+  Serial.println("RFID BEGAN");
   
   // Grab the firmware version
   uint32_t versiondata = rfid.getFirmwareVersion();
+
+
+  Serial.println("THATS SOME FIRM WARES");
 
   // If nothing is returned, it didn't work. Loop forever
   if (!versiondata) {
@@ -304,14 +289,14 @@ int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
 
 uint8_t _physicalid[8] = { 0 };
 
-void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]) {
+void LifegraphAPI::readIdentity (Adafruit_NFCShield_I2C rfid, char access_token[128]) {
   // Read identity.
   while (true) {
     int pidLength = this->readCard(rfid, _physicalid);
-    (*wifiSerial).listen();
     if (this->connect(_physicalid, pidLength, access_token) == 200) {
       break;
     }
+    Serial.println("No access tokens found. Retrying with tag...");
   }
 
   Serial.print("Read access token: ");
@@ -337,41 +322,26 @@ int lifegraph_connect_cb ( js0n_parser_t * parser )
   CB_END;
 }
 
-int json_debug_cb ( js0n_parser_t * parser )
+int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128])
 {
-  CB_BEGIN;
-  Serial.print(parser->token_type);
-  Serial.print(" ");
-  Serial.print(parser->token_length);
-  Serial.print(" ");
-  Serial.print("\"");
-  for (int i = 0; i < parser->token_length; i++) {
-    Serial.print((char) parser->buffer[i]);
-  }
-  Serial.print("\"");
-  Serial.println();
-  CB_END;
-}
-
-int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128]) {
   lifegraph_connect_buffer = access_token;
   memset(access_token, '\0', 128);
 
   this->hasBody = false;
   this->_headerStart("GET");
   this->_headerPath("tokens");
-  wifly.print("/");
+  client.print("/");
   char token[3];
   for (int i = 0; i < uidLength; i++) {
     snprintf(token, 3, "%02x", uid[i]);
-    wifly.print(token);
+    client.print(token);
   }
-  wifly.print("?namespace=");
-  wifly.print(this->ns);
-  wifly.print("&key=");
-  wifly.print(this->key);
-  wifly.print("&secret=");
-  wifly.print(this->secret);
+  client.print("?namespace=");
+  client.print(this->ns);
+  client.print("&key=");
+  client.print(this->key);
+  client.print("&secret=");
+  client.print(this->secret);
   this->_headerEnd();
   return this->request( lifegraph_connect_cb );
 }
@@ -411,13 +381,13 @@ void FacebookAPI::post (const char *access_token, const char *path) {
 }
 
 void FacebookAPI::_headerPath (const char *path, const char *access_token) {
-  wifly.print(this->base);
-  wifly.print("/");
-  wifly.print(path);
+  client.print(this->base);
+  client.print("/");
+  client.print(path);
   if (access_token != 0) {
-    wifly.print(strstr(path, "?") == 0 ? "?" : "&");
-    wifly.print("access_token=");
-    wifly.print(access_token);
+    client.print(strstr(path, "?") == 0 ? "?" : "&");
+    client.print("access_token=");
+    client.print(access_token);
   }
 }
 
@@ -431,25 +401,23 @@ int FacebookAPI::postStatus (const char *access_token, const char *status) {
 
 // unreadNotifications
 
-boolean notifications_flag;
+int notifications_count;
 
 int notifications_cb ( js0n_parser_t * parser )
 {
   CB_BEGIN;
-  if (CB_MATCHES_KEY("unread")) {
+  if (CB_MATCHES_KEY("unseen_count")) {
     CB_GET_NEXT_TOKEN;
-    if (parser->buffer[0] != '0') {
-      notifications_flag = 1;
-    }
+    notifications_count = atoi((char *) parser->buffer);
   }
   CB_END;
 }
 
-int FacebookAPI::unreadNotifications (const char *access_token, boolean *notifications_flag_ret) {
-  notifications_flag = 0;
+int FacebookAPI::unreadNotifications (const char *access_token, int *notifications_count_ret) {
+  notifications_count = 0;
   Facebook.get(access_token, "me/notifications?limit=1");
   int status_code = Facebook.request(notifications_cb);
-  *notifications_flag_ret = notifications_flag;
+  *notifications_count_ret = notifications_count;
   return status_code;
 }
 

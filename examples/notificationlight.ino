@@ -3,29 +3,30 @@
  * This sketch is released to the public domain.
  */
 
-#include <WiFlyHQ.h>
-#include <sm130.h>
-#include <Lifegraph.h>
-
+#include <SPI.h>
+#include <WiFly.h>
 #include <SoftwareSerial.h>
-SoftwareSerial wifiSerial(2,3);
+#include <Adafruit_NFCShield_I2C.h>
+#include <Lifegraph.h>
 
 
 /**
  * Configuration
  */
- 
+
+// Our wifi network credentials.
 const char mySSID[] = "...";
 const char myPassword[] = "...";
 
 // To make a request, you'll need an access token.
 // For temporary one, use the Graph API Explorer: https://developers.facebook.com/tools/explorer
-// and request a token with "manage_notifications" and "publish_stream" permissions.
-// But take note: Graph API Explorer access tokens expires every hour.
-const char access_token[] = "...";
+// and request a token with the "manage_notifications" permission.
+// Take note: Graph API Explorer access tokens expires every hour.
+char access_token[128] = "...";
  
 // Pin our LED is connected to.
-int light = 13;
+int light = 6;
+ 
  
 /**
  * Setup
@@ -35,33 +36,36 @@ void setup()
 {
   // Setup ports.
   Serial.begin(9600);
-  wifiSerial.begin(9600);
   pinMode(light, OUTPUT);
   
-  Serial.println("Connecting...");
+  Serial.println("Connecting to Wi-Fi...");
  
-  // Setup network connection.
-  if (!connectWifi(&wifiSerial, mySSID, myPassword)) {
+  // Setup WiFly and wireless network.
+  WiFly.begin();
+  if (!WiFly.join(mySSID, myPassword)) {
     Serial.println("Failed to join network.");
-  } else {
-    Serial.println("Joined wifi network.");
+    while (true) {
+      // Hang forever
+    }
   }
+  Serial.println("Joined wifi network.");
+  WiFly.configure(WIFLY_BAUD, 9600);
 }
 
 void loop()
 { 
-  // Read if there are unread notifications on the server.
-  boolean notifications_flag;
-  int status_code = Facebook.unreadNotifications ( access_token, &notifications_flag );
+  // Request if there are unread notifications on Facebook.
+  int unread_count;
+  int status_code = Facebook.unreadNotifications ( access_token, &unread_count );
   
-  // If the request is successful, update the light.
+  // If the request is successful (HTTP OK), update the light accordingly.
   if (status_code == 200) {
-    digitalWrite(light, notifications_flag ? HIGH : LOW);
+    digitalWrite(light, unread_count > 0 ? HIGH : LOW);
   }
 
-  // Notify terminal of our success.
-  Serial.print("Response: ");
+  // Notify terminal of our status.
+  Serial.print("HTTP Status Code: ");
   Serial.print(status_code);
-  Serial.print(" Unread notifications:");
-  Serial.println(notifications_flag, HEX);
+  Serial.print(" Unread notifications: ");
+  Serial.println(unread_count);
 }

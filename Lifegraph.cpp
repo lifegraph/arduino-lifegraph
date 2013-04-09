@@ -1,24 +1,29 @@
 #include <Arduino.h>
-#include "Lifegraph.h"
-#include <WiFlyHQ.h>
+#include <Lifegraph.h>
 #include <SoftwareSerial.h>
-#include <sm130.h>
+#include <WiFlyHQ.h>
+
+
+#ifdef sm130_h
+#define DO_SM130 1
+#endif
+
+/* global wifly object */
 
 WiFly wifly;
 
 /* Connect the WiFly serial to the serial monitor. */
 void terminal()
 {
-    while (1) {
-  if (wifly.available() > 0) {
-      Serial.write(wifly.read());
-  }
-
-
-  if (Serial.available() > 0) {
-      wifly.write(Serial.read());
-  }
+  while (1) {
+    if (wifly.available() > 0) {
+     Serial.write(wifly.read());
     }
+
+    if (Serial.available() > 0) {
+      wifly.write(Serial.read());
+    }
+  }
 }
 
 boolean connectWifi (SoftwareSerial *wifiSerial, const char *ssid, const char *pass) {
@@ -265,57 +270,6 @@ LifegraphAPI::LifegraphAPI (uint8_t *buf, int bufferSize)
   this->base = "/api";
   this->buffer = buf;
   this->bufferSize = bufferSize;
-}
-
-int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
-  rfid.begin();
-  
-  // Grab the firmware version
-  uint32_t versiondata = rfid.getFirmwareVersion();
-
-  // If nothing is returned, it didn't work. Loop forever
-  if (!versiondata) {
-    Serial.print(F("Didn't find RFID Shield. Check your connection to the Arduino board."));
-    while (1); 
-  }
-  
-   // We will store the results of our tag reading in these vars
-  uint8_t success = 0;
-  uint8_t uidLength = 0;
-
-  Serial.println(F("Waiting for tag..."));
-
-  // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
-  // 'uid' will be populated with the UID, and uidLength will indicate the length
-  // If we succesfully received a tag and it has been greater than the time delay (in seconds)
-  while (!(success)) {
-    success = rfid.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
-  }
-  
-  // Print the ID in hex format
-  Serial.print(F("Read a tag: "));
-  for (int i = 0; i < uidLength; i++) {
-    Serial.print(uid[i], HEX);
-  }
-  Serial.println(F(""));
-
-  return uidLength;
-}
-
-uint8_t _physicalid[8] = { 0 };
-
-void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]) {
-  // Read identity.
-  while (true) {
-    int pidLength = this->readCard(rfid, _physicalid);
-    (*wifiSerial).listen();
-    if (this->connect(_physicalid, pidLength, access_token) == 200) {
-      break;
-    }
-  }
-
-  Serial.print(F("Read access token: "));
-  Serial.println(access_token);
 }
 
 void LifegraphAPI::configure (const char *app_namespace, const char *app_key, const char *app_secret) {

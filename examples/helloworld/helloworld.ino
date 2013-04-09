@@ -3,9 +3,8 @@
  * This sketch is released to the public domain.
  */
 
-#include <WiFlyHQ.h>
-#include <sm130.h>
 #include <SoftwareSerial.h>
+#include <WiFlyHQ.h>
 #include <Lifegraph.h>
 
 SoftwareSerial wifiSerial(9, 10);

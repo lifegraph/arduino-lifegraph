@@ -1,10 +1,17 @@
-#include <js0n.h>
-#include <Arduino.h>
-#include <WiFlyHQ.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#include <js0n.h>
+
+#include <Arduino.h>
 #include <SoftwareSerial.h>
-#include <sm130.h>
+#include <WiFlyHQ.h>
+
+
+#if defined(PN532_PREAMBLE)
+#include <Adafruit_NFCShield_I2C.h>
+typedef NFCReader Adafruit_NFCShield_I2C;
+#endif
 
 
 // Wifi.
@@ -51,8 +58,10 @@ class LifegraphAPI : public JSONAPI {
     LifegraphAPI (uint8_t *buf, int bufferSize);
 
     void configure (const char *app_namespace, const char *app_key, const char *app_secret);
-    int readCard (NFCReader rfid, uint8_t uid[8]);
-    void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
+    #ifdef sm130_h
+        int readCard (NFCReader rfid, uint8_t uid[8]);
+        void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
+    #endif
     int connect (uint8_t uid[], int uidLength, char access_token[128]);
     void stringifyTag (uint8_t uid[], int uidLength, char output[]);
 };
@@ -94,3 +103,74 @@ extern uint8_t LIFEGRAPH_BUFFER[LIFEGRAPH_BUFFER_SIZE];
 // Global objects.
 extern LifegraphAPI Lifegraph;
 extern FacebookAPI Facebook;
+
+
+#ifndef LG_RFID
+#define LG_RFID 1
+
+
+#if defined(PN532_PREAMBLE)
+#include <Adafruit_NFCShield_I2C.h>
+typedef NFCReader Adafruit_NFCShield_I2C;
+#endif
+
+
+
+#if defined(sm130_h) || defined(PN532_PREAMBLE)
+
+int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
+  rfid.begin();
+  
+  // Grab the firmware version
+  uint32_t versiondata = rfid.getFirmwareVersion();
+
+  // If nothing is returned, it didn't work. Loop forever
+  if (!versiondata) {
+    Serial.print(F("Didn't find RFID Shield. Check your connection to the Arduino board."));
+    while (1); 
+  }
+  
+   // We will store the results of our tag reading in these vars
+  uint8_t success = 0;
+  uint8_t uidLength = 0;
+
+  Serial.println(F("Waiting for tag..."));
+
+  // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
+  // 'uid' will be populated with the UID, and uidLength will indicate the length
+  // If we succesfully received a tag and it has been greater than the time delay (in seconds)
+  while (!(success)) {
+    success = rfid.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength);
+  }
+  
+  // Print the ID in hex format
+  Serial.print(F("Read a tag: "));
+  for (int i = 0; i < uidLength; i++) {
+    Serial.print(uid[i], HEX);
+  }
+  Serial.println(F(""));
+
+  return uidLength;
+}
+
+uint8_t _physicalid[8] = { 0 };
+
+void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]) {
+  // Read identity.
+  while (true) {
+    int pidLength = this->readCard(rfid, _physicalid);
+    (*wifiSerial).listen();
+    int res = this->connect(_physicalid, pidLength, access_token);
+    if (res == 200) {
+      break;
+    }
+    Serial.print(F("Got error response: "));
+    Serial.println(res);
+  }
+
+  Serial.print(F("Read access token: "));
+  Serial.println(access_token);
+}
+#endif
+
+#endif

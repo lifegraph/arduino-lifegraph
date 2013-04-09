@@ -3,9 +3,8 @@
  * This sketch is released to the public domain.
  */
 
-#include <WiFlyHQ.h>
-#include <sm130.h>
 #include <SoftwareSerial.h>
+#include <WiFlyHQ.h>
 #include <Lifegraph.h>
 
 SoftwareSerial wifiSerial(9, 10);
@@ -27,6 +26,7 @@ char access_token[128] = "...";
  
 // Pin our LED is connected to.
 int light = 13;
+ 
  
 /**
  * Setup

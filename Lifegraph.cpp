@@ -416,6 +416,32 @@ int FacebookAPI::unreadNotifications (const char *access_token, int *notificatio
   return status_code;
 }
 
+/**
+ * Generic boolean string matching
+ */
+
+char * string_to_find = NULL;
+int num_strings_found = 0;
+
+int string_matching_cb ( js0n_parser_t * parser )
+{
+  CB_BEGIN;
+  if (parser->token_type == JSON_MAP_KEY || parser->token_type == JSON_STRING) {
+    if (strstr((char *) parser->buffer, string_to_find) != NULL) {
+      num_strings_found++;
+    }
+  }
+  CB_END;
+}
+
+int FacebookAPI::findString (const char *access_token, char *path, char *str_to_find, int *num_strings_found_ret) {
+  string_to_find = str_to_find;
+  num_strings_found = 0;
+  Facebook.get(access_token, path);
+  int status_code = Facebook.request(string_matching_cb);
+  *num_strings_found_ret = num_strings_found;
+  return status_code;
+}
 
 /**
  * Globals object

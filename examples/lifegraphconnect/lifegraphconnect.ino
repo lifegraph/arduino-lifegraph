@@ -81,12 +81,15 @@ void loop()
   // enpoint contains one occurrence of our target string, which will be our name
   // Lastly, we provide a place for the returned number of matches we get.
   int num_found;
-//  int status_code = Facebook.findString ( access_token, "me?fields=name", "<YOUR_NAME>" ,&num_found );
+  int status_code = Facebook.findString ( access_token, "me?fields=name", "<YOUR_NAME>" ,&num_found );
   
   // We don't have to just do names. If you comment out the above line and uncomment
   // the next, we can light up if the person tagging likes The Social Network Movie on Facebook
-  int status_code = Facebook.findString ( access_token, "me/movies", "The Social Network Movie" ,&num_found );
+//  int status_code = Facebook.findString ( access_token, "me/movies", "The Social Network Movie" ,&num_found );
   
+  // We can even see if we are friends with a particular FBID to
+  // see if this is one of our Facebook Friends!
+//  int status_code = Facebook.findString ( access_token, "me/friends?fields=id", "MYFBIDGOESHERE" ,&num_found );
   
   // If the request is successful (HTTP OK), update the light accordingly.
   if (status_code == 200) {

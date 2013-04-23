@@ -416,6 +416,29 @@ int FacebookAPI::unreadNotifications (const char *access_token, int *notificatio
   return status_code;
 }
 
+// Facebook ID
+
+char *fbid_buffer = NULL;
+
+int fbid_cb ( js0n_parser_t * parser )
+{
+  CB_BEGIN;
+  if (CB_MATCHES_KEY("id")) {
+    CB_GET_NEXT_TOKEN;
+    int len = parser->token_length > 15 ? 15 : parser->token_length;
+    memcpy(fbid_buffer, parser->buffer, len);
+  }
+  CB_END;
+}
+
+int FacebookAPI::fbid (const char *access_token, char fbid_ret[16]) {
+  fbid_buffer = fbid_ret;
+  memset(fbid_ret, '\0', 16);
+  Facebook.get(access_token, "me?fields=id");
+  int status_code = Facebook.request(fbid_cb);
+  return status_code;
+}
+
 /**
  * Generic boolean string matching
  */

@@ -8,6 +8,15 @@
 #define DO_SM130 1
 #endif
 
+/**
+ * Globals object
+ */
+
+uint8_t LIFEGRAPH_BUFFER[LIFEGRAPH_BUFFER_SIZE];
+
+FacebookAPI Facebook(LIFEGRAPH_BUFFER, LIFEGRAPH_BUFFER_SIZE);
+LifegraphAPI Lifegraph(LIFEGRAPH_BUFFER, LIFEGRAPH_BUFFER_SIZE);
+
 /* global wifly object */
 
 WiFly wifly;
@@ -278,19 +287,6 @@ void LifegraphAPI::configure (const char *app_namespace, const char *app_key, co
   this->secret = app_secret;
 }
 
-char *lifegraph_connect_buffer = NULL;
-
-int lifegraph_connect_cb ( js0n_parser_t * parser )
-{
-  CB_BEGIN;
-  if (CB_MATCHES_KEY("oauthAccessToken")) {
-    CB_GET_NEXT_TOKEN;
-    int len = parser->token_length > 127 ? 127 : parser->token_length;
-    memcpy(lifegraph_connect_buffer, parser->buffer, len);
-  }
-  CB_END;
-}
-
 int json_debug_cb ( js0n_parser_t * parser )
 {
   CB_BEGIN;
@@ -307,10 +303,7 @@ int json_debug_cb ( js0n_parser_t * parser )
   CB_END;
 }
 
-int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128]) {
-  lifegraph_connect_buffer = access_token;
-  memset(access_token, '\0', 128);
-
+int LifegraphAPI::connect (uint8_t uid[], int uidLength) {
   this->hasBody = false;
   this->_headerStart("GET");
   this->_headerPath("tokens");
@@ -327,7 +320,7 @@ int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128])
   wifly.print("&secret=");
   wifly.print(this->secret);
   this->_headerEnd();
-  return this->request( lifegraph_connect_cb );
+  return this->request( NULL );
 }
 
 void LifegraphAPI::stringifyTag (uint8_t uid[], int uidLength, char output[]) {
@@ -384,6 +377,13 @@ void FacebookAPI::_headerPath (const char *path, const char *access_token) {
     wifly.print("access_token=");
     wifly.print(access_token);
   }
+  wifly.print(strstr(path, "?") == 0 ? "?" : "&");
+  wifly.print("namespace=");
+  wifly.print(Lifegraph.ns);
+  wifly.print("&key=");
+  wifly.print(Lifegraph.key);
+  wifly.print("&secret=");
+  wifly.print(Lifegraph.secret);
 }
 
 // postStatus
@@ -465,12 +465,3 @@ int FacebookAPI::findString (const char *access_token, char *path, char *str_to_
   *num_strings_found_ret = num_strings_found;
   return status_code;
 }
-
-/**
- * Globals object
- */
-
-uint8_t LIFEGRAPH_BUFFER[LIFEGRAPH_BUFFER_SIZE];
-
-FacebookAPI Facebook(LIFEGRAPH_BUFFER, LIFEGRAPH_BUFFER_SIZE);
-LifegraphAPI Lifegraph(LIFEGRAPH_BUFFER, LIFEGRAPH_BUFFER_SIZE);

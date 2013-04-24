@@ -62,7 +62,7 @@ class LifegraphAPI : public JSONAPI {
         int readCard (NFCReader rfid, uint8_t uid[8]);
         void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
     #endif
-    int connect (uint8_t uid[], int uidLength, char access_token[128]);
+    int connect (uint8_t uid[], int uidLength);
     void stringifyTag (uint8_t uid[], int uidLength, char output[]);
 };
 
@@ -157,12 +157,13 @@ int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
 
 uint8_t _physicalid[8] = { 0 };
 
-void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]) {
+void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char lg_access_token[32]) {
   // Read identity.
+  int pidLength = 0;
   while (true) {
-    int pidLength = this->readCard(rfid, _physicalid);
+    pidLength = this->readCard(rfid, _physicalid);
     (*wifiSerial).listen();
-    int res = this->connect(_physicalid, pidLength, access_token);
+    int res = this->connect(_physicalid, pidLength);
     if (res == 200) {
       break;
     }
@@ -170,8 +171,13 @@ void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, cha
     Serial.println(res);
   }
 
-  Serial.print(F("Read access token: "));
-  Serial.println(access_token);
+  snprintf(lg_access_token, 5, "@LGC");
+  for (int i = 0; i < pidLength; i++) {
+    snprintf(&lg_access_token[i * 2 + 4], 3, "%02x", _physicalid[i]);
+  }
+
+  Serial.print(F("Read lg access token: "));
+  Serial.println(lg_access_token);
 }
 #endif
 

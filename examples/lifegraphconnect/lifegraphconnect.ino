@@ -22,7 +22,7 @@ const char myPassword[] = "...";
 
 // Lifegraph Connect manages access tokens for us.
 // Create an empty access token we can populate once an RFID card is tagged in.
-char access_token[128] = { 0 };
+char access_token[256] = { 0 };
 
 // We need an application's credentials (namespace, key, and secret)
 // to request a user's access tokens from Facebook.

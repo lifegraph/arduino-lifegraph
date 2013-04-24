@@ -22,7 +22,7 @@ const char myPassword[] = "...";
 // For temporary one, use the Graph API Explorer: https://developers.facebook.com/tools/explorer
 // and request a token with the "manage_notifications" permission.
 // Take note: Graph API Explorer access tokens expires every hour.
-char access_token[128] = "...";
+char access_token[256] = "...";
  
 // Pin our LED is connected to.
 int light = 13;

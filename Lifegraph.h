@@ -60,9 +60,9 @@ class LifegraphAPI : public JSONAPI {
     void configure (const char *app_namespace, const char *app_key, const char *app_secret);
     #ifdef sm130_h
         int readCard (NFCReader rfid, uint8_t uid[8]);
-        void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]);
+        void readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[256]);
     #endif
-    int connect (uint8_t uid[], int uidLength, char access_token[128]);
+    int connect (uint8_t uid[], int uidLength, char access_token[256]);
     void stringifyTag (uint8_t uid[], int uidLength, char output[]);
 };
 
@@ -155,7 +155,7 @@ int LifegraphAPI::readCard(NFCReader rfid, uint8_t uid[8]) {
 
 uint8_t _physicalid[8] = { 0 };
 
-void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[128]) {
+void LifegraphAPI::readIdentity (NFCReader rfid, SoftwareSerial *wifiSerial, char access_token[256]) {
   // Read identity.
   while (true) {
     int pidLength = this->readCard(rfid, _physicalid);

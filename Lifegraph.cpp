@@ -307,9 +307,9 @@ int json_debug_cb ( js0n_parser_t * parser )
   CB_END;
 }
 
-int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[128]) {
+int LifegraphAPI::connect (uint8_t uid[], int uidLength, char access_token[256]) {
   lifegraph_connect_buffer = access_token;
-  memset(access_token, '\0', 128);
+  memset(access_token, '\0', 256);
 
   this->hasBody = false;
   this->_headerStart("GET");

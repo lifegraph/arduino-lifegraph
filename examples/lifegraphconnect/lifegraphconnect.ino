@@ -21,21 +21,24 @@ NFCReader rfid(7, 8);
  */
  
 // Wifi configuration for a WPA network.
-const char mySSID[] = "OLIN_GUEST";
-const char myPassword[] = "The_Phoenix_Flies";
+const char mySSID[] = "...";
+const char myPassword[] = "...";
 
 // Lifegraph Connect (http://lifegraphconnect.com) manages access tokens for us
 // so we can exchange a physical RFID for a Facebook access_token.
 // Create an empty access token we can populate once an RFID card is tagged in.
-char access_token[256] = { 0 };
+char access_token[32] = { 0 };
+
+// Let's grab our Facebook ID to test.
+char fbid[16] = { 0 };
 
 // We need an application's credentials (namespace, key, and secret)
 // to request a user's access tokens from Facebook.
 // Get these from one of your apps on https://developers.facebook.com/apps
 // Make a Facebook App by following this step of this tutorial: https://developers.facebook.com/docs/opengraph/getting-started/#create-app
-const char app_namespace[] = "friendlock";
-const char app_key[] = "367540040017172";
-const char app_secret[] = "b0a325f0cafd20200cd8f8f781ef8c4d";
+const char app_namespace[] = "...";
+const char app_key[] = "...";
+const char app_secret[] = "...";
  
 // Pin our LED is connected to.
 int light = 13;
@@ -81,6 +84,7 @@ void loop()
   // enpoint contains one occurrence of our target string, which will be our name
   // Lastly, we provide a place for the returned number of matches we get.
   int num_found;
+  
   int status_code = Facebook.findString ( access_token, "me?fields=name", "<YOUR_NAME>" ,&num_found );
   
   // We don't have to just do names. If you comment out the above line and uncomment
@@ -97,8 +101,15 @@ void loop()
   }
 
   // Notify terminal of our status.
-  Serial.print("HTTP Status Code: ");
+  Serial.print(F("HTTP Status Code: "));
   Serial.print(status_code);
   Serial.print(" Number matched: ");
   Serial.println(num_found);
+
+  // We can also use any of the convenience functions, such as grabbing our Facebook ID
+  status_code = Facebook.fbid(access_token, fbid);
+  Serial.print(F("HTTP Status Code: "));
+  Serial.print(status_code);
+  Serial.print(" Facebook ID: ");
+  Serial.println(fbid);
 }

@@ -4,7 +4,7 @@
 
 ## Installation
 
-This library dependso on the WiFlyHQ and (optionally) the sm130 library.
+This library depends on the WiFlyHQ and (optionally) the sm130 library.
 
 ```
 $ mkdir -p ~/Documents/Arduino/libraries
@@ -20,7 +20,7 @@ The [Notification Light](https://raw.github.com/lifegraph/arduino-lifegraph/mast
 1. Follow the steps in [**arduino-wifi-setup**](https://github.com/lifegraph/arduino-wifi-setup) 
 2. Copy the source from [`examples/notificationlight.ino`](https://raw.github.com/lifegraph/arduino-lifegraph/master/examples/notificationlight/notificationlight.ino) into a new sketch.
 3. Set the SSID, Password, and Access Token at the top of the file.
-4. Conncet an LED from pin 13 to ground.
+4. Connect an LED from pin 13 to ground.
 5. Run. Press Command+Shift+M after it uploads to monitor the progress of the notification light.
 6. To post an example status update, uncomment the relevant code from the `setup()` function.
 
